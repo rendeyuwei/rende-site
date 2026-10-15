@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>rende.fun — 任德的小工具</title>
+  <meta name="description" content="任德的个人站。做几个小工具，各管一件事。打开就能用，不用注册。">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@500;600&family=ZCOOL+QingKe+HuangYou&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/site.css">
+</head>
+<body>
+  <section class="hero">
+    <canvas id="aurora" aria-hidden="true"></canvas>
+    <div class="wrap">
+      <div class="eyebrow">任德的个人站 · 3 个工具在线</div>
+      <h1 class="mark" aria-label="rende.fun"><span class="w" aria-hidden="true"></span><span class="tag" aria-hidden="true">.fun</span></h1>
+      <div class="sub">
+        <p>做几个小工具，各管一件事。<span>打开就能用，不用注册。</span></p>
+        <a class="scroll" href="#tools">↓ 看看工具</a>
+      </div>
+    </div>
+  </section>
+  <main class="wrap">
+    <h2 id="tools" class="rv">工具 <small>/easypic · /shutter · /recipes</small></h2>
+    <div class="grid">
+      <a class="tool rv" href="/easypic/">
+        <div class="win w-ep" aria-hidden="true"><span class="ep">EP</span><div class="card">拖放图片到这里</div></div>
+        <div class="meta"><b>EasyPic</b><p>压缩图片、转换格式，在浏览器里处理完。</p><span class="go">/easypic/ <i>打开 →</i></span></div>
+      </a>
+      <a class="tool rv" href="/shutter/">
+        <div class="win w-sc" aria-hidden="true"><div><small>SHUTTER COUNT</small><div class="n" data-count="12480">12,480</div></div></div>
+        <div class="meta"><b>快门计数</b><p>上传一张相机原图，读取机身型号和快门次数。</p><span class="go">/shutter/ <i>打开 →</i></span></div>
+      </a>
+      <a class="tool rv" href="/recipes/">
+        <div class="win w-rc" aria-hidden="true"><div class="pot">茄</div><span class="bd">菜</span></div>
+        <div class="meta"><b>家常菜本</b><p>做过的家常菜，配料和步骤截图都记在这里。</p><span class="go">/recipes/ <i>打开 →</i></span></div>
+      </a>
+      <div class="next rv">
+        <div class="copy">
+          <b>有想法？一起做。</b>
+          <p>下一个工具还在做。如果你有点子、想合作，或者只是想聊聊，欢迎写信给我。</p>
+        </div>
+        <div class="acts">
+          <a class="btn primary" href="mailto:rendeyuwei@qq.com?subject=关于%20rende.fun%20的合作">写信给我</a>
+          <a class="btn" href="mailto:render@mail.grokbot.com?subject=留言给任德的秘书">找秘书 bot</a>
+        </div>
+      </div>
+    </div>
+    <h2 id="about" class="rv">关于我 <small>about</small></h2>
+    <section class="about">
+      <div class="card-me rv">
+        <div class="ph ph-empty" role="img" aria-label="照片待补"><i aria-hidden="true"></i><span>照片待补</span></div>
+        <div class="who"><b>任德</b><span>rende · 中国杭州</span></div>
+      </div>
+      <div class="bio rv">
+        <p>人在杭州，前端搬砖。业余做几个小工具，挂在 rende.fun。</p>
+        <p>兴趣：摄影、游戏、电影。</p>
+        <dl>
+          <dt>GitHub</dt>
+          <dd><a class="m" href="https://github.com/rendeyuwei" target="_blank" rel="noopener">github.com/rendeyuwei</a></dd>
+          <dt>X</dt>
+          <dd><a class="m" href="https://x.com/QSncV6Zi9580297" target="_blank" rel="noopener">@QSncV6Zi9580297</a></dd>
+          <dt>个人邮箱</dt>
+          <dd>
+            <a class="m" href="mailto:rendeyuwei@qq.com">rendeyuwei@qq.com</a><br>
+            <a class="m" href="mailto:bat1210299223@gmail.com">bat1210299223@gmail.com</a>
+          </dd>
+          <dt>秘书 bot 邮箱</dt>
+          <dd><a class="m" href="mailto:render@mail.grokbot.com">render@mail.grokbot.com</a></dd>
+        </dl>
+      </div>
+    </section>
+    <footer>
+      <span>© 2026 任德 · rende.fun</span>
+      <span class="m">made slowly, one tool at a time</span>
+    </footer>
+  </main>
+  <script src="/shell/topbar.js" defer></script>
+  <script src="/motion.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+{
+  "name": "rende-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "rende.fun main site. Static HTML, CSS, and TypeScript compiled with tsc.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/copy-static.mjs",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "preview": "npm run build && python3 -m http.server 4173 --directory dist"
+  },
+  "devDependencies": {
+    "linkedom": "^0.18.12",
+    "typescript": "^5.9.3"
+  }
+}
