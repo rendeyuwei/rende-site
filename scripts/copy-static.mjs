@@ -1,4 +1,4 @@
-import { cp, mkdir, readdir, stat } from "node:fs/promises";
+import { cp, mkdir, stat } from "node:fs/promises";
 import path from "node:path";
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -16,6 +16,8 @@ const required = [
   "motion.js",
   "shell/topbar.js",
   "shell/topbar.css",
+  "assets/me.jpg",
+  "assets/me-560.jpg",
 ];
 
 for (const rel of required) {
@@ -24,11 +26,6 @@ for (const rel of required) {
   if (!info.isFile() || info.size === 0) {
     throw new Error(`missing build output: ${rel}`);
   }
-}
-
-const names = await readdir(dist);
-if (names.includes("me.jpg")) {
-  throw new Error("dist must not ship a portrait photo");
 }
 
 console.log(`copied static files into ${dist}`);

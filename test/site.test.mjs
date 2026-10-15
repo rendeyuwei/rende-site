@@ -22,6 +22,8 @@ describe("dist contract", () => {
       "apple-touch-icon.png",
       "shell/topbar.js",
       "shell/topbar.css",
+      "assets/me.jpg",
+      "assets/me-560.jpg",
     ]) {
       const info = statSync(path.join(dist, rel));
       assert.ok(info.isFile() && info.size > 0, rel);
@@ -55,13 +57,23 @@ describe("dist contract", () => {
       "https://github.com/rendeyuwei",
       "@QSncV6Zi9580297",
       "© 2026 任德 · rende.fun",
-      "照片待补",
+      'src="/assets/me.jpg"',
+      'srcset="/assets/me-560.jpg 560w, /assets/me.jpg 1120w"',
+      'sizes="(max-width: 640px) 88px, (max-width: 959px) 220px, 280px"',
+      'width="1120"',
+      'height="1680"',
+      'alt="任德"',
+      'loading="lazy"',
+      'decoding="async"',
       'src="/shell/topbar.js"',
       'src="/motion.js"',
     ]) {
       assert.ok(html.includes(text), text);
     }
-    assert.equal(html.includes("me.jpg"), false);
+    assert.equal(html.includes("照片待补"), false);
+    assert.match(css, /\.card-me \.ph img \{[^}]*height: auto/);
+    assert.match(css, /object-fit: cover/);
+    assert.match(css, /object-position: 62% 66%/);
     assert.match(css, /prefers-reduced-motion:\s*reduce/);
     assert.match(read("shell/topbar.css"), /--rf-h:\s*48px/);
     assert.match(read("shell/topbar.css"), /z-index:\s*2147483000/);

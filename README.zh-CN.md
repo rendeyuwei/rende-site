@@ -30,6 +30,9 @@ dist/
   shell/
     topbar.js
     topbar.css
+  assets/
+    me.jpg
+    me-560.jpg
 ```
 
 把 `rende.fun` 的 `root` 指到这个目录。如果部署把 `dist/` 发布成 `/opt/site/current`，根目录就是 `/opt/site/current`。如果 `current` 是仓库本身，根目录就是 `/opt/site/current/dist`。本仓库不改服务器上的 Nginx。
@@ -64,6 +67,6 @@ with:
 
 主页按 v2 设计：石墨色顶栏、极光首屏、`rende` 字标加薄荷绿 `.fun` 贴纸、EasyPic / 快门计数 / 家常菜本三张工具窗、虚线框「下一个工具还在做」、关于我、页脚 `© 2026 任德 · rende.fun`。
 
-关于我只写已确认的内容：杭州、前端搬砖、摄影 / 游戏 / 电影、两个个人邮箱、可选的秘书邮箱 `render@mail.grokbot.com`、GitHub 和 X。没有肖像。关于我卡片里留着标为「照片待补」的空位。
+关于我只写已确认的内容：杭州、前端搬砖、摄影 / 游戏 / 电影、两个个人邮箱、可选的秘书邮箱 `render@mail.grokbot.com`、GitHub 和 X。肖像是 `assets/me.jpg`（1120×1680），并用 `assets/me-560.jpg` 做 `srcset`。桌面和平板显示完整 2:3 画面。手机上是 88px 方图，裁向人脸。
 
 动效与演示一致：字标只入场一次、滚动显现、快门数字滚动、精确指针设备上的卡片倾斜和聚光、半分辨率极光（离开画面就暂停）。`prefers-reduced-motion: reduce` 会跳过这些，极光只画一帧。`?freeze=<毫秒>` 把 CSS 动画停在该时刻，方便截图。

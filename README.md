@@ -30,6 +30,9 @@ dist/
   shell/
     topbar.js
     topbar.css
+  assets/
+    me.jpg
+    me-560.jpg
 ```
 
 Point the `rende.fun` server at that directory. If a deploy checks out this repo and publishes `dist/` as `/opt/site/current`, the root is `/opt/site/current`. If `current` is the repo tree, the root is `/opt/site/current/dist`. This repo does not change the server.
@@ -64,6 +67,6 @@ If the reusable workflow later requires `health_url`, `node_version`, or `build_
 
 The home page is the v2 design: graphite top bar, aurora hero, `rende` wordmark with a mint `.fun` chip, tool windows for EasyPic, 快门计数, and 家常菜本, a dashed “下一个工具还在做” row, an about section, and the footer `© 2026 任德 · rende.fun`.
 
-About text uses only the confirmed bio: Hangzhou, frontend engineer, photography / games / movies, the two personal emails, the optional secretary address `render@mail.grokbot.com`, GitHub, and X. There is no portrait. The about card keeps an empty slot labeled 照片待补.
+About text uses only the confirmed bio: Hangzhou, frontend engineer, photography / games / movies, the two personal emails, the optional secretary address `render@mail.grokbot.com`, GitHub, and X. The portrait is `assets/me.jpg` (1120×1680) with `assets/me-560.jpg` in `srcset`. Desktop and tablet show the full 2:3 frame. The phone layout uses an 88px square crop aimed at the face.
 
 Motion follows the demo: one-shot wordmark, scroll reveal, shutter count-up, hover tilt and spotlight on fine pointers, and a half-resolution aurora that pauses off-screen. `prefers-reduced-motion: reduce` skips those and draws a single aurora frame. `?freeze=<ms>` holds CSS animations at that time for screenshots.

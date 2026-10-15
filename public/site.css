@@ -296,25 +296,7 @@ h2 small {
 }
 
 .card-me .ph { background: #1a1c20; overflow: hidden; line-height: 0; }
-
-.ph-empty {
-  aspect-ratio: 2 / 3;
-  display: grid;
-  place-items: center;
-  gap: 12px;
-  color: #9aa0a8;
-  font: 500 12px/1 "JetBrains Mono", monospace;
-  letter-spacing: 0.04em;
-}
-
-.ph-empty i {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--led);
-  box-shadow: 0 0 12px var(--led);
-  font-style: normal;
-}
+.card-me .ph img { width: 100%; height: auto; display: block; border: 0; }
 
 .card-me .who { padding: 18px 20px 20px; }
 .card-me b { font: 700 28px/1 "Bricolage Grotesque", "Noto Sans SC", sans-serif; display: block; }
@@ -363,9 +345,8 @@ footer .m { font-family: "JetBrains Mono", monospace; }
   h2 { margin-top: 64px; font-size: 26px; }
   .about { grid-template-columns: 1fr; }
   .card-me { flex-direction: row; align-items: center; }
-  .card-me .ph { flex: none; width: 88px; }
-  .ph-empty { width: 88px; font-size: 0; gap: 0; }
-  .ph-empty i { font-size: 0; }
+  .card-me .ph { flex: none; width: 88px; height: 88px; }
+  .card-me .ph img { width: 88px; height: 88px; object-fit: cover; object-position: 62% 66%; }
   .card-me .who { padding: 14px 16px; display: flex; flex-direction: column; justify-content: center; }
   .bio p { font-size: 16px; }
   footer { margin-top: 64px; }
