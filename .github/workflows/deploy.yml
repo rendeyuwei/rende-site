@@ -1,0 +1,36 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Production deploys queue. Do not cancel one that is already running.
+concurrency:
+  group: deploy-site
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Expected reusable workflow. Checked 2026-10-15: rendeyuwei/rende-deploy
+    # main has no .github/workflows yet (README only). This job is the caller
+    # shape for when that file lands on main.
+    #
+    #   uses: rendeyuwei/rende-deploy/.github/workflows/deploy-project.yml@main
+    #   with:
+    #     project: site
+    #
+    # `site` is the static project: build `npm ci && npm run build`, publish
+    # `dist/` (this directory is the Nginx document root), health check
+    # HTTPS GET https://rende.fun/ expecting 200.
+    #
+    # Pass only `project`. If the reusable workflow's workflow_call later
+    # requires health_url, node_version, or build_commands, add them here.
+    # GitHub rejects inputs the called workflow does not declare.
+    #
+    # Secrets are per-repo (not shared from rende-deploy):
+    # ECS_HOST, ECS_USER, ECS_SSH_KEY, ECS_KNOWN_HOSTS.
+    uses: rendeyuwei/rende-deploy/.github/workflows/deploy-project.yml@main
+    with:
+      project: site
+    secrets: inherit
