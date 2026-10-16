@@ -73,7 +73,7 @@ describe("dist contract", () => {
     assert.equal(html.includes("照片待补"), false);
     assert.match(css, /\.card-me \.ph img \{[^}]*height: auto/);
     assert.match(css, /object-fit: cover/);
-    assert.match(css, /object-position: 62% 66%/);
+    assert.match(css, /object-position: 56% 45%/);
     assert.match(css, /prefers-reduced-motion:\s*reduce/);
     assert.match(read("shell/topbar.css"), /--rf-h:\s*48px/);
     assert.match(read("shell/topbar.css"), /z-index:\s*2147483000/);
