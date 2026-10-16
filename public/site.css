@@ -347,9 +347,10 @@ footer .m { font-family: "JetBrains Mono", monospace; }
   .about { grid-template-columns: 1fr; }
   .card-me { flex-direction: row; align-items: center; }
   .card-me .ph { flex: none; width: 88px; height: 88px; }
-  /* Face on me-560.jpg (560×840) spans about x=250–373, y=378–432, center (311, 405).
-     cover keeps full width and a 560px window; y% centers source row 280*(1+y/100), so 45% centers y=406. */
-  .card-me .ph img { width: 88px; height: 88px; object-fit: cover; object-position: 56% 45%; }
+  /* me-560.jpg is 560×840. Eyes/glasses sit near (345, 548), chin near y=610; face center y≈550.
+     y=378–432 is the tower roof. cover shows full width and a 560px window; its center row is
+     280+280*p, so 96% centers y≈549. 62% records the face's x; that axis does not crop. */
+  .card-me .ph img { width: 88px; height: 88px; object-fit: cover; object-position: 62% 96%; }
   .card-me .who { padding: 14px 16px; display: flex; flex-direction: column; justify-content: center; }
   .bio p { font-size: 16px; }
   footer { margin-top: 64px; }
