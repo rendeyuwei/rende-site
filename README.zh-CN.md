@@ -37,13 +37,13 @@ dist/
 
 把 `rende.fun` 的 `root` 指到这个目录。如果部署把 `dist/` 发布成 `/opt/site/current`，根目录就是 `/opt/site/current`。如果 `current` 是仓库本身，根目录就是 `/opt/site/current/dist`。本仓库不改服务器上的 Nginx。
 
-同一台机器上的其他站点可以共用顶栏：
+本站在文档根提供 `/shell/topbar.js`（旁边是 `/shell/topbar.css`）。同一台机器上的其他站点这样嵌入：
 
 ```html
 <script src="/shell/topbar.js" defer></script>
 ```
 
-脚本会插入 48px 顶栏，并从自己的 URL 加载 `topbar.css`，给 `<html>` 加上 `rf-has-bar`，从而让 `body` 有 `padding-top: 48px`。可选属性：`data-tool="easypic|shutter|recipes"` 和 `data-home="/"`。子站里 `position: sticky/fixed; top: 0` 的元素应改成 `top: var(--rf-h, 0px)`。
+脚本会插入 48px 的固定顶栏，并从脚本自己的 URL 加载样式，给 `<html>` 加上 `rf-has-bar`，从而让 `body` 有 `padding-top: 48px`。可选属性：`data-tool="easypic|shutter|recipes"` 和 `data-home="/"`。原来 `position: fixed` 或 `position: sticky` 且 `top: 0` 的元素应改成 `top: var(--rf-h, 0px)`，避免被顶栏挡住。不要把 z-index 设得高于 `2147483000`。
 
 ## 部署
 
@@ -65,8 +65,8 @@ with:
 
 ## 页面
 
-主页按 v2 设计：石墨色顶栏、极光首屏、`rende` 字标加薄荷绿 `.fun` 贴纸、EasyPic / 快门计数 / 家常菜本三张工具窗、虚线框「下一个工具还在做」、关于我、页脚 `© 2026 任德 · rende.fun`。
+主页按 v2 设计：石墨色顶栏、极光首屏、`rende` 字标加薄荷绿 `.fun` 贴纸、EasyPic / 快门计数 / 家常菜本三张工具窗、虚线框「下一个工具还在做」、关于我、页脚 `© 2026 任德 · rende.fun`。页宽跟演示稿一致，`max-width: 1120px`。
 
-关于我只写已确认的内容：杭州、前端搬砖、摄影 / 游戏 / 电影、两个个人邮箱、可选的秘书邮箱 `render@mail.grokbot.com`、GitHub 和 X。肖像是 `assets/me.jpg`（1120×1680），并用 `assets/me-560.jpg` 做 `srcset`。桌面和平板显示完整 2:3 画面。手机上是 88px 方图，裁向人脸。
+关于我只写已确认的内容：杭州、前端搬砖、摄影 / 游戏 / 电影、两个个人邮箱、可选的秘书邮箱 `render@mail.grokbot.com`、GitHub 和 X。肖像是 `assets/me.jpg`（1120×1680），并用 `assets/me-560.jpg` 做 `srcset`。桌面和平板显示完整 2:3，名字在照片下方。手机上是 88px 方图；`object-position: 56% 45%` 把实测的脸部中心（560×840 文件里大约 x=311、y=405）放在方图中心。
 
 动效与演示一致：字标只入场一次、滚动显现、快门数字滚动、精确指针设备上的卡片倾斜和聚光、半分辨率极光（离开画面就暂停）。`prefers-reduced-motion: reduce` 会跳过这些，极光只画一帧。`?freeze=<毫秒>` 把 CSS 动画停在该时刻，方便截图。
