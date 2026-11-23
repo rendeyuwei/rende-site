@@ -22,13 +22,16 @@ npm run preview   # 构建后在 http://127.0.0.1:4173 提供 dist/
 
 ```text
 dist/
-  index.html
+  index.html        # 中文，内联了语言判定
+  en/
+    index.html      # 英文
   site.css
   motion.js
   favicon.svg
   apple-touch-icon.png
   shell/
-    topbar.js
+    lang.js         # 中英文路由（window.rfLang）
+    topbar.js       # lang.js + 顶栏
     topbar.css
   assets/
     me.jpg
@@ -44,6 +47,23 @@ dist/
 ```
 
 脚本会插入 48px 的固定顶栏，并从脚本自己的 URL 加载样式，给 `<html>` 加上 `rf-has-bar`，从而让 `body` 有 `padding-top: 48px`。可选属性：`data-tool="easypic|shutter|recipes"` 和 `data-home="/"`。原来 `position: fixed` 或 `position: sticky` 且 `top: 0` 的元素应改成 `top: var(--rf-h, 0px)`，避免被顶栏挡住。不要把 z-index 设得高于 `2147483000`。
+
+## 语言
+
+中文沿用无前缀 URL。英文放在各站自己的 `en/` 下：`/en/`、`/easypic/en/`、`/shutter/en/`、`/recipes/en/`。设计见 `docs/superpowers/specs/2026-11-23-sites-i18n-design.md`。
+
+只有 `src/shell/lang.ts` 知道有哪些站点、URL 在两种语言间怎么对应。它安装 `window.rfLang`。页面在 `<head>` 里以 `<script data-rf-enter>` 加载它时，会在渲染前决定语言：
+
+1. `en/` 下的 URL 是英文；无前缀 URL 带 `?lang=zh` 是中文。两者都不会被覆盖。
+2. 否则用顶栏切换器保存的选择（`localStorage["rf-lang"]`，存储不可用时用 `rf-lang` cookie）。
+3. 否则取 `navigator.languages` 中第一个 `zh*` 或 `en*`。
+4. 都没有则用英文。
+
+它只会把无前缀页面换到对应的 `en/` 页面，保留剩余路径、query 和 hash。英文页从不跳转，所以不会循环。没有声明 `<link rel="alternate" hreflang="en">` 的页面也不会跳转。
+
+构建时把 `lang.js` 内联进 `index.html`，并拼到 `topbar.js` 前面，因此只加载顶栏的页面也有 `window.rfLang`（但不跳转）。顶栏跟随页面 URL 的语言；页面用 `<link rel="alternate" hreflang="zh-CN|en">` 声明了另一种语言时才显示切换器；顶栏会改写自己的链接和页面上的 `a[data-rf-site="<id>"]`。存储被禁用时，明确的 `?lang=zh` 会带到这些链接上，下一个工具不会退回英文。
+
+工具接入英文：提供 `<base>en/`；两种语言都加 `canonical` 和 `hreflang`（`zh-CN`、`en`、`x-default` 指向英文）；在中文入口里这些链接之后内联带 `data-rf-enter` 的 `/shell/lang.js`；API 和资源 URL 保持以工具前缀开头。上线后把 `src/shell/lang.ts` 里该工具的 `en` 改成 `true` 并部署本站；在此之前英文主页指向该工具的中文入口。
 
 ## 部署
 
@@ -65,7 +85,7 @@ with:
 
 ## 页面
 
-主页按 v2 设计：石墨色顶栏、极光首屏、`rende` 字标加薄荷绿 `.fun` 贴纸、EasyPic / 快门计数 / 家常菜本三张工具窗、虚线框「下一个工具还在做」、关于我、页脚 `© 2026 任德 · rende.fun`。页宽跟演示稿一致，`max-width: 1120px`。
+主页按 v2 设计：石墨色顶栏、极光首屏、`rende` 字标加薄荷绿 `.fun` 贴纸、EasyPic / 快门计数 / 家常菜本三张工具窗、虚线框「下一个工具还在做」、关于我、页脚 `© 2026 任德 · rende.fun`。页宽跟演示稿一致，`max-width: 1120px`。`public/en/index.html` 是同一页面的英文版（ShutterCount、Home Recipes），测试保证它的元素结构与中文页一致。
 
 关于我只写已确认的内容：杭州、前端搬砖、摄影 / 游戏 / 电影、两个个人邮箱、可选的秘书邮箱 `render@mail.grokbot.com`、GitHub 和 X。肖像是 `assets/me.jpg`（1120×1680），并用 `assets/me-560.jpg` 做 `srcset`。桌面和平板显示完整 2:3，名字在照片下方。手机上是 88px 方图；`object-position: 62% 96%` 把脸部中心（560×840 文件里大约 x=345、y=550，眼睛约在 y=548）放在方图中心。y=378–432 是塔顶，不是脸。
 

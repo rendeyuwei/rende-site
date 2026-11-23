@@ -22,13 +22,16 @@ Open the preview from that server. Paths are absolute (`/shell/topbar.js`), so o
 
 ```text
 dist/
-  index.html
+  index.html        # zh, with the language decision inlined
+  en/
+    index.html      # en
   site.css
   motion.js
   favicon.svg
   apple-touch-icon.png
   shell/
-    topbar.js
+    lang.js         # zh/en router (window.rfLang)
+    topbar.js       # lang.js + the bar
     topbar.css
   assets/
     me.jpg
@@ -44,6 +47,23 @@ This site serves the shared bar at `/shell/topbar.js` (and `/shell/topbar.css` n
 ```
 
 The script inserts a 48px fixed bar, loads its CSS from the script URL, and adds `rf-has-bar` on `<html>` so `body` gets `padding-top: 48px`. Optional attributes: `data-tool="easypic|shutter|recipes"` and `data-home="/"`. Any `position: fixed` or `position: sticky` element that used to sit at `top: 0` should use `top: var(--rf-h, 0px)` so it clears the bar. Do not set a z-index above `2147483000`.
+
+## Languages
+
+Chinese keeps the unprefixed URLs. English lives under each site's own `en/`: `/en/`, `/easypic/en/`, `/shutter/en/`, `/recipes/en/`. The design is `docs/superpowers/specs/2026-11-23-sites-i18n-design.md`.
+
+`src/shell/lang.ts` is the only place that knows the sites and how URLs map between languages. It installs `window.rfLang`. On a page that loads it as `<script data-rf-enter>` in `<head>`, it picks the language before the page renders:
+
+1. A URL under `en/` is English, and `?lang=zh` on an unprefixed URL is Chinese. Neither is overridden.
+2. Otherwise a choice made with the bar's switch (`localStorage["rf-lang"]`, or the `rf-lang` cookie when storage fails).
+3. Otherwise the first `zh*` or `en*` entry in `navigator.languages`.
+4. Otherwise English.
+
+It only ever moves an unprefixed page to its `en/` counterpart, keeping the rest of the path, the query, and the hash. English pages never redirect, so it cannot loop. A page that does not declare `<link rel="alternate" hreflang="en">` never redirects.
+
+The build inlines `lang.js` into `index.html` and prepends it to `topbar.js`, so pages that only load the bar still get `window.rfLang` (without the redirect). The bar follows the page URL's language, shows the switch only when the page declares the other language with `<link rel="alternate" hreflang="zh-CN|en">`, and rewrites its links and any `a[data-rf-site="<id>"]` on the page. When storage is disabled, an explicit `?lang=zh` is carried on those links so the next tool does not fall back to English.
+
+To bring a tool into English: serve `<base>en/`, add `canonical` and `hreflang` links (`zh-CN`, `en`, `x-default` → English) to both versions, inline `/shell/lang.js` with `data-rf-enter` after those links in the zh entry, and keep API and asset URLs anchored at the tool's base. Once that is live, set the tool's `en` to `true` in `src/shell/lang.ts` and deploy this site; until then the English home page links to the tool's Chinese entry.
 
 ## Deploy
 
@@ -65,7 +85,7 @@ If the reusable workflow later requires `health_url`, `node_version`, or `build_
 
 ## Page
 
-The home page is the v2 design: graphite top bar, aurora hero, `rende` wordmark with a mint `.fun` chip, tool windows for EasyPic, 快门计数, and 家常菜本, a dashed “下一个工具还在做” row, an about section, and the footer `© 2026 任德 · rende.fun`. The page column matches the demo: `max-width: 1120px`.
+The home page is the v2 design: graphite top bar, aurora hero, `rende` wordmark with a mint `.fun` chip, tool windows for EasyPic, 快门计数, and 家常菜本, a dashed “下一个工具还在做” row, an about section, and the footer `© 2026 任德 · rende.fun`. The page column matches the demo: `max-width: 1120px`. `public/en/index.html` is the same page in English (ShutterCount, Home Recipes); a test keeps its element structure identical to the Chinese page.
 
 About text uses only the confirmed bio: Hangzhou, frontend engineer, photography / games / movies, the two personal emails, the optional secretary address `render@mail.grokbot.com`, GitHub, and X. The portrait is `assets/me.jpg` (1120×1680) with `assets/me-560.jpg` in `srcset`. Desktop and tablet show the full 2:3 frame, with the name under the photo. The phone layout is an 88px square; `object-position: 62% 96%` puts the face center (about x=345, y=550 on the 560×840 file; eyes near y=548) at the center of that square. The rows around y=378–432 are the tower roof.
 
