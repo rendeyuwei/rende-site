@@ -63,9 +63,14 @@ dist/
 
 构建时把 `lang.js` 内联进 `index.html`，并拼到 `topbar.js` 前面（`v` 为 2，会换掉页面里更旧的内联副本），因此只加载顶栏的页面也有 `window.rfLang`（但不跳转）。顶栏跟随页面 URL 的语言；页面用 `<link rel="alternate" hreflang="zh-CN|en">` 声明了另一种语言时才显示切换器；顶栏会改写自己的链接和页面上的 `a[data-rf-site="<id>"]`。存储被禁用时，明确的 `?lang=zh` 会带到这些链接上，下一个工具不会退回英文。
 
-工具如果不挂在注册表前缀下，用 `<meta name="rf-mount" content="/tools/counter/">`，并在顶栏脚本上写 `data-tool="shutter|easypic|recipes"`。已有的 `<meta name="sc-mount">` 同样有效。值必须是当前 URL 之下的同源干净路径，否则忽略；`/easypic/`、`/shutter/`、`/recipes/` 仍按注册表解释。`place().mount` 是这个前缀，`place().site.base` 仍是线上前缀。三个工具的 `en` 在英文真正上线前保持 `false`。
+工具如果不挂在注册表前缀下，用 `<meta name="rf-mount" content="/tools/counter/">`（EasyPic 挂在 `/pics/` 时用 `content="/pics/"`），并在顶栏脚本上写 `data-tool="shutter|easypic|recipes"`。已有的 `<meta name="sc-mount">` 同样有效。值必须是当前 URL 之下的同源干净路径，否则忽略；`/easypic/`、`/shutter/`、`/recipes/` 仍按注册表解释。`place().mount` 是这个前缀，`place().site.base` 仍是线上前缀。三个工具的 `en` 在英文真正上线前保持 `false`。
 
-页面自己 `pushState` 或 `replaceState` 之后，URL、`html lang`、title 和 hreflang 都更新完，派发一次事件。手选时自己调用 `choose(lang)`。顶栏只听一次并重建，不会包住 `place` 或 `href`。后退和前进走 `popstate`，顶栏自己刷新。
+```html
+<meta name="rf-mount" content="/pics/" />
+<script src="/shell/topbar.js" defer data-tool="easypic"></script>
+```
+
+页面自己 `pushState` 或 `replaceState` 之后，URL、`html lang`、title 和 hreflang 都更新完，在同一轮里派发事件。`dispatchEvent` 返回时，原来的 `.rf-bar` 已经对上 URL。手选时自己调用 `choose(lang)`。顶栏只听一次，重建这同一个顶栏的子节点；开关原先有焦点时，焦点回到新开关。它不包住 `place` 或 `href`，不再请求 `topbar.js`，也不动页面其余部分。不要删 `window.__rfBar`，不要拆掉顶栏再插一次脚本：那样会叠监听，而且断网时旧顶栏已经没了。后退和前进走 `popstate`，顶栏自己刷新。
 
 ```js
 history.pushState(null, "", nextUrl);

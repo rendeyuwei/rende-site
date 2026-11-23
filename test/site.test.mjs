@@ -436,7 +436,7 @@ describe("lang", () => {
   });
 });
 
-function bar({ pathname = "/", search = "", hash = "", head = ALTERNATES, body = "", storage, tool = "", mount = "", mountName = "rf-mount" } = {}) {
+function bar({ pathname = "/", search = "", hash = "", head = ALTERNATES, body = "", storage, tool = "", mount = "", mountName = "rf-mount", beforeRun } = {}) {
   const meta = mount ? `<meta name="${mountName}" content="${mount}">` : "";
   const { window, document } = browser(`<!doctype html><html><head>${meta}${head}</head><body>${body}</body></html>`, {
     pathname,
@@ -446,6 +446,7 @@ function bar({ pathname = "/", search = "", hash = "", head = ALTERNATES, body =
   });
   const script = withScript(document, "https://rende.fun/shell/topbar.js", tool ? { "data-tool": tool } : {});
   document.head.appendChild(script);
+  beforeRun?.({ window, document });
   vm.runInThisContext(read("shell/topbar.js"));
   const hrefs = [...document.querySelectorAll(".rf-menu a")].map((link) => link.getAttribute("href"));
   return { window, document, hrefs, toggle: document.querySelector(".rf-lang") };
@@ -736,6 +737,88 @@ describe("same-document locale", () => {
     assert.equal(document.querySelector('a[data-rf-site="easypic"]').getAttribute("href"), "/easypic/?lang=zh");
     assert.equal(document.querySelector(".rf-logo").getAttribute("href"), "/?lang=zh");
     assert.doesNotThrow(() => document.querySelector("a.rf-lang").click());
+  });
+
+  it("refreshes /pics in place, keeps listeners, and returns focus to the switch", () => {
+    const undeclared = bar({ pathname: "/pics/en/", tool: "easypic" });
+    assert.equal(undeclared.window.rfLang.place("/pics/en/").site.id, "home");
+    assert.equal(undeclared.window.rfLang.href("en"), "/en/pics/en/");
+    assert.equal(undeclared.document.querySelector(".rf-bar").getAttribute("lang"), "zh-CN");
+    const counts = { click: 0, keydown: 0, hashchange: 0 };
+    const { window, document } = bar({
+      pathname: "/pics/en/",
+      tool: "easypic",
+      mount: "/pics/",
+      body: '<img id="photo" alt="user">',
+      beforeRun({ document: page, window: view }) {
+        let active = page.body;
+        Object.defineProperty(page, "activeElement", {
+          configurable: true,
+          get() {
+            return active && active.isConnected ? active : page.body;
+          },
+        });
+        const proto = view.HTMLElement.prototype;
+        const origFocus = proto.focus;
+        proto.focus = function focus() {
+          active = this;
+          return origFocus.call(this);
+        };
+        const watch = (target, names) => {
+          const orig = target.addEventListener;
+          target.addEventListener = function (type, ...rest) {
+            if (names.includes(type)) counts[type] += 1;
+            return orig.call(this, type, ...rest);
+          };
+        };
+        watch(page, ["click", "keydown"]);
+        watch(view, ["hashchange"]);
+      },
+    });
+    const place = window.rfLang.place("/pics/en/");
+    assert.equal(place.site.id, "easypic");
+    assert.equal(place.site.base, "/easypic/");
+    assert.equal(place.site.en, false);
+    assert.equal(place.lang, "en");
+    assert.equal(place.mount, "/pics/");
+    assert.equal(window.rfLang.href("zh"), "/pics/?lang=zh");
+    assert.equal(window.rfLang.href("en"), "/pics/en/");
+    assert.equal(document.querySelector(".rf-bar").getAttribute("lang"), "en");
+    assert.equal(document.querySelector("a.rf-lang").getAttribute("href"), "/pics/?lang=zh");
+    assert.deepEqual(snap(document).hrefs, ["/easypic/", "/shutter/", "/recipes/", "/en/"]);
+    const header = document.querySelector(".rf-bar");
+    const scripts = document.querySelectorAll('script[src*="topbar.js"]').length;
+    document.addEventListener(
+      "click",
+      (event) => {
+        const target = event.target;
+        const link = target && target.closest ? target.closest("a.rf-lang") : null;
+        if (!link) return;
+        event.preventDefault();
+        event.stopPropagation();
+        location.pathname = location.pathname === "/pics/en/" ? "/pics/" : "/pics/en/";
+        document.dispatchEvent(new window.Event("rf:locale"));
+      },
+      true,
+    );
+    const started = { ...counts };
+    for (let i = 0; i < 5; i += 1) {
+      const toggle = document.querySelector("a.rf-lang");
+      toggle.focus();
+      toggle.dispatchEvent(new document.defaultView.Event("click", { bubbles: true, cancelable: true }));
+      const next = document.querySelector("a.rf-lang");
+      assert.equal(document.activeElement, next);
+      assert.notEqual(document.activeElement, document.body);
+      assert.equal(document.querySelector(".rf-bar"), header);
+      assert.equal(document.querySelector("#photo").isConnected, true);
+    }
+    assert.deepEqual(counts, started);
+    assert.equal(document.querySelectorAll('script[src*="topbar.js"]').length, scripts);
+    assert.equal(window.__rfBar, 1);
+    vm.runInThisContext(read("shell/topbar.js"));
+    assert.deepEqual(counts, started);
+    assert.equal(document.querySelector(".rf-bar"), header);
+    assert.equal(document.querySelector("#photo").isConnected, true);
   });
 });
 

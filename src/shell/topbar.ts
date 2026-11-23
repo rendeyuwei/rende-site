@@ -82,6 +82,7 @@
   // Rebuild after a same-document language change. Dispatch "rf:locale" once the
   // URL, html lang, title, and hreflang links match. popstate refreshes too.
   const render = (): void => {
+    const keepFocus = document.activeElement?.classList.contains("rf-lang") === true;
     const here = rf.place(location.pathname);
     const lang = here.lang;
     const text = COPY[lang];
@@ -188,6 +189,8 @@
     for (const link of document.querySelectorAll<HTMLAnchorElement>("a[data-rf-site]")) {
       link.href = rf.siteHref(link.dataset.rfSite || "home");
     }
+    const toggle = bar.querySelector("a.rf-lang");
+    if (keepFocus && toggle && "focus" in toggle && typeof toggle.focus === "function") toggle.focus();
   };
 
   const mount = (): void => {

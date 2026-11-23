@@ -63,9 +63,14 @@ It only ever moves an unprefixed page to its `en/` counterpart, keeping the rest
 
 The build inlines `lang.js` into `index.html` and prepends it to `topbar.js` (`v` 2 replaces an older inlined copy), so pages that only load the bar still get `window.rfLang` (without the redirect). The bar follows the page URL's language, shows the switch only when the page declares the other language with `<link rel="alternate" hreflang="zh-CN|en">`, and rewrites its links and any `a[data-rf-site="<id>"]` on the page. When storage is disabled, an explicit `?lang=zh` is carried on those links so the next tool does not fall back to English.
 
-A tool served outside its registry prefix says so with `<meta name="rf-mount" content="/tools/counter/">` and `data-tool="shutter|easypic|recipes"` on the bar script. The existing `<meta name="sc-mount">` is accepted too. The value must be a clean same-origin path under the current URL; anything else is ignored, and `/easypic/`, `/shutter/`, and `/recipes/` keep their registry meaning. `place().mount` is that prefix. `place().site.base` stays the live prefix, and `site.en` stays `false` until that tool's English is actually in production.
+A tool served outside its registry prefix says so with `<meta name="rf-mount" content="/tools/counter/">` (EasyPic at `/pics/` uses `content="/pics/"`) and `data-tool="shutter|easypic|recipes"` on the bar script. The existing `<meta name="sc-mount">` is accepted too. The value must be a clean same-origin path under the current URL; anything else is ignored, and `/easypic/`, `/shutter/`, and `/recipes/` keep their registry meaning. `place().mount` is that prefix. `place().site.base` stays the live prefix, and `site.en` stays `false` until that tool's English is actually in production.
 
-After an in-memory `pushState` or `replaceState`, once the URL, `html lang`, title, and hreflang links match, dispatch the change. Call `choose(lang)` yourself when the visitor picked it. The bar listens once and rebuilds; it does not wrap `place` or `href`. Back and forward refresh from `popstate`.
+```html
+<meta name="rf-mount" content="/pics/" />
+<script src="/shell/topbar.js" defer data-tool="easypic"></script>
+```
+
+After an in-memory `pushState` or `replaceState`, once the URL, `html lang`, title, and hreflang links match, dispatch the change in the same turn. `dispatchEvent` returns only after the existing `.rf-bar` matches the URL. Call `choose(lang)` yourself when the visitor picked it. The bar listens once, rebuilds the children of that same header, and puts focus back on the switch when it had focus. It does not wrap `place` or `href`, fetch `topbar.js` again, or touch the rest of the page. Leave `window.__rfBar` and the header in place; deleting either and inserting the script again stacks listeners and depends on the network. Back and forward refresh from `popstate`.
 
 ```js
 history.pushState(null, "", nextUrl);

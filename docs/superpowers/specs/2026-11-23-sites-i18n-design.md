@@ -77,7 +77,7 @@ if want == "en" 且 offers("en")   → location.replace(href("en"))
 - 文案中英两份：logo 标签、回到主站、工具按钮、菜单标签、全部工具、“当前”标记（CSS `:lang(en)`）、工具名与描述（EasyPic / ShutterCount / Home Recipes）。
 - 菜单、logo、“回到主站”和页面中带 `data-rf-site="<id>"` 的链接，`href` 都取 `siteHref(id)`。`data-home` 和 `data-tool` 仍然生效。
 - 切换器：只有在 `offers(另一种语言)` 时才显示；`href` 取 `href(另一种语言)`，点击时先 `choose()` 再导航；hash 变化时更新 `href`。旧版子站没有声明对应页，所以不显示切换器。
-- 同一文档内换语言：页面用 `pushState` 或 `replaceState` 改好 URL，并更新 `html lang`、title、hreflang 之后，派发一次 `document.dispatchEvent(new Event("rf:locale"))`。顶栏只注册一次监听，再渲染时不重复绑事件，也不替换 `rfLang` 上已有的函数。手选仍由页面调用 `choose()`（点顶栏开关时顶栏自己调用）。`popstate`（后退/前进）由顶栏自己刷新。不要包一层 `place`/`href`。
+- 同一文档内换语言：页面用 `pushState` 或 `replaceState` 改好 URL，并更新 `html lang`、title、hreflang 之后，在同一轮同步派发 `document.dispatchEvent(new Event("rf:locale"))`。返回时同一个 `.rf-bar` 已对上 URL；开关原先有焦点则焦点回到新开关。document 的 click/keydown 和 window 的 hashchange 只注册一次。不要删 `window.__rfBar`，不要拆掉顶栏，不要再插入 `topbar.js`。手选仍由页面调用 `choose()`（点顶栏开关时顶栏自己调用）。`popstate`（后退/前进）由顶栏自己刷新。不要包一层 `place`/`href`。
 
 ## 6. 主站页面
 
@@ -94,7 +94,7 @@ if want == "en" 且 offers("en")   → location.replace(href("en"))
 
 ## 8. 子站接入清单（后续轮次）
 
-1. 入口 HTML：`<html lang>`、canonical、两条 `hreflang` 加 `x-default`，然后内联 `/shell/lang.js`（带 `data-rf-enter`）；其后的统计片段以 `if (window.rfLang && window.rfLang.leaving) return;` 开头。内联副本带着构建时的站点表，任一站 `en` 改变后要重新复制；双语页面不要再设 `data-home`（它会覆盖语言感知的主页链接）。挂载不是注册表前缀时加 `<meta name="rf-mount" content="/your/base/">`，顶栏脚本保留 `data-tool`。同一文档里 `pushState` 之后派发 `rf:locale`。
+1. 入口 HTML：`<html lang>`、canonical、两条 `hreflang` 加 `x-default`，然后内联 `/shell/lang.js`（带 `data-rf-enter`）；其后的统计片段以 `if (window.rfLang && window.rfLang.leaving) return;` 开头。内联副本带着构建时的站点表，任一站 `en` 改变后要重新复制；双语页面不要再设 `data-home`（它会覆盖语言感知的主页链接）。挂载不是注册表前缀时加 `<meta name="rf-mount" content="/your/base/">`（例如 `/pics/`），顶栏脚本保留 `data-tool`。同一文档里 `pushState` 之后同步派发 `rf:locale`，不要重放顶栏脚本。
 2. 英文外壳 `<base>en/index.html`；API、图片、资源路径保持站点前缀（快门需先把 `./api/*`、`./iphone-export-original.jpg` 改为以 `/shutter/` 开头）。
 3. 路由前缀按 `place().lang` 设置（如 `/recipes/en`）。
 4. 文案字典打包，首帧同步取语言；服务端错误增加稳定 `code`（家常菜本），快门 `note` 增加 `noteCode`。
