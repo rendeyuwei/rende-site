@@ -427,9 +427,9 @@ describe("lang", () => {
     assert.deepEqual(
       rf.sites.map((site) => [site.id, site.base, site.en]),
       [
-        ["easypic", "/easypic/", false],
-        ["shutter", "/shutter/", false],
-        ["recipes", "/recipes/", false],
+        ["easypic", "/easypic/", true],
+        ["shutter", "/shutter/", true],
+        ["recipes", "/recipes/", true],
         ["home", "/", true],
       ],
     );
@@ -466,8 +466,8 @@ describe("topbar languages", () => {
       [...document.querySelectorAll(".rf-menu .rf-n")].map((node) => node.textContent),
       ["EasyPic", "ShutterCount", "Home Recipes", "All tools"],
     );
-    assert.deepEqual(hrefs, ["/easypic/", "/shutter/", "/recipes/", "/en/"]);
-    assert.equal(document.querySelector('a[data-rf-site="shutter"]').getAttribute("href"), "/shutter/");
+    assert.deepEqual(hrefs, ["/easypic/en/", "/shutter/en/", "/recipes/en/", "/en/"]);
+    assert.equal(document.querySelector('a[data-rf-site="shutter"]').getAttribute("href"), "/shutter/en/");
     assert.equal(toggle.textContent, "中文");
     assert.equal(toggle.getAttribute("lang"), "zh-CN");
     assert.equal(toggle.getAttribute("href"), "/?freeze=0&lang=zh#about");
@@ -499,12 +499,18 @@ describe("topbar languages", () => {
     assert.equal(toggle.getAttribute("href"), "/?lang=zh");
   });
 
-  it("links to a tool's English entry once that tool turns on en", () => {
+  it("links an English page to each tool's English entry", () => {
     const { window } = bar({ pathname: "/en/" });
-    const easypic = window.rfLang.sites.find((site) => site.id === "easypic");
-    easypic.en = true;
     assert.equal(window.rfLang.siteHref("easypic"), "/easypic/en/");
+    assert.equal(window.rfLang.siteHref("shutter"), "/shutter/en/");
+    assert.equal(window.rfLang.siteHref("recipes"), "/recipes/en/");
+    assert.equal(window.rfLang.siteHref("home"), "/en/");
+    window.rfLang.sites.find((site) => site.id === "shutter").en = false;
     assert.equal(window.rfLang.siteHref("shutter"), "/shutter/");
+    const zh = bar({ pathname: "/" });
+    assert.equal(zh.window.rfLang.siteHref("easypic"), "/easypic/");
+    assert.equal(zh.window.rfLang.siteHref("shutter"), "/shutter/");
+    assert.equal(zh.window.rfLang.siteHref("recipes"), "/recipes/");
   });
 
   it("drops the zh marker from links once the choice is stored", () => {
@@ -570,7 +576,7 @@ describe("same-document locale", () => {
     const place = window.rfLang.place(location.pathname);
     assert.equal(place.site.id, "shutter");
     assert.equal(place.site.base, "/shutter/");
-    assert.equal(place.site.en, false);
+    assert.equal(place.site.en, true);
     assert.equal(place.lang, "zh");
     assert.equal(place.rest, "");
     assert.equal(place.mount, "/tools/counter/");
@@ -605,9 +611,9 @@ describe("same-document locale", () => {
     assert.equal(snap(english.document).toggleHref, "/tools/counter/?demo=1&lang=zh#success");
     assert.deepEqual(
       english.window.rfLang.sites.map((site) => site.en),
-      [false, false, false, true],
+      [true, true, true, true],
     );
-    assert.deepEqual(snap(english.document).hrefs, ["/easypic/", "/shutter/", "/recipes/", "/en/"]);
+    assert.deepEqual(snap(english.document).hrefs, ["/easypic/en/", "/shutter/en/", "/recipes/en/", "/en/"]);
   });
 
   it("keeps root and known mounts, and leaves undeclared main paths alone", () => {
@@ -690,7 +696,7 @@ describe("same-document locale", () => {
     assert.equal(shown.toggle, "中文");
     assert.equal(shown.toggleLang, "zh-CN");
     assert.equal(shown.toggleHref, "/tools/counter/?demo=1&lang=zh#success");
-    assert.deepEqual(shown.hrefs, ["/easypic/", "/shutter/", "/recipes/", "/en/"]);
+    assert.deepEqual(shown.hrefs, ["/easypic/en/", "/shutter/en/", "/recipes/en/", "/en/"]);
     assert.equal(document.querySelector("#result").textContent, "12,480");
     assert.equal(local.items.get("rf-lang"), "en");
     for (const key of kept) assert.equal(rf[key], originals[key], key);
@@ -716,7 +722,7 @@ describe("same-document locale", () => {
     location.pathname = "/lab/recipes/12";
     recipes.document.dispatchEvent(new recipes.window.Event("rf:locale"));
     assert.equal(recipes.document.querySelector(".rf-cur").textContent, "家常菜本");
-    assert.equal(recipes.window.rfLang.sites.find((site) => site.id === "recipes").en, false);
+    assert.equal(recipes.window.rfLang.sites.find((site) => site.id === "recipes").en, true);
   });
 
   it("keeps an explicit Chinese choice on in-memory links when storage is blocked", () => {
@@ -778,14 +784,14 @@ describe("same-document locale", () => {
     const place = window.rfLang.place("/pics/en/");
     assert.equal(place.site.id, "easypic");
     assert.equal(place.site.base, "/easypic/");
-    assert.equal(place.site.en, false);
+    assert.equal(place.site.en, true);
     assert.equal(place.lang, "en");
     assert.equal(place.mount, "/pics/");
     assert.equal(window.rfLang.href("zh"), "/pics/?lang=zh");
     assert.equal(window.rfLang.href("en"), "/pics/en/");
     assert.equal(document.querySelector(".rf-bar").getAttribute("lang"), "en");
     assert.equal(document.querySelector("a.rf-lang").getAttribute("href"), "/pics/?lang=zh");
-    assert.deepEqual(snap(document).hrefs, ["/easypic/", "/shutter/", "/recipes/", "/en/"]);
+    assert.deepEqual(snap(document).hrefs, ["/easypic/en/", "/shutter/en/", "/recipes/en/", "/en/"]);
     const header = document.querySelector(".rf-bar");
     const scripts = document.querySelectorAll('script[src*="topbar.js"]').length;
     document.addEventListener(

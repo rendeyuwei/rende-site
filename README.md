@@ -63,7 +63,7 @@ It only ever moves an unprefixed page to its `en/` counterpart, keeping the rest
 
 The build inlines `lang.js` into `index.html` and prepends it to `topbar.js` (`v` 2 replaces an older inlined copy), so pages that only load the bar still get `window.rfLang` (without the redirect). The bar follows the page URL's language, shows the switch only when the page declares the other language with `<link rel="alternate" hreflang="zh-CN|en">`, and rewrites its links and any `a[data-rf-site="<id>"]` on the page. When storage is disabled, an explicit `?lang=zh` is carried on those links so the next tool does not fall back to English.
 
-A tool served outside its registry prefix says so with `<meta name="rf-mount" content="/tools/counter/">` (EasyPic at `/pics/` uses `content="/pics/"`) and `data-tool="shutter|easypic|recipes"` on the bar script. The existing `<meta name="sc-mount">` is accepted too. The value must be a clean same-origin path under the current URL; anything else is ignored, and `/easypic/`, `/shutter/`, and `/recipes/` keep their registry meaning. `place().mount` is that prefix. `place().site.base` stays the live prefix, and `site.en` stays `false` until that tool's English is actually in production.
+A tool served outside its registry prefix says so with `<meta name="rf-mount" content="/tools/counter/">` (EasyPic at `/pics/` uses `content="/pics/"`) and `data-tool="shutter|easypic|recipes"` on the bar script. The existing `<meta name="sc-mount">` is accepted too. The value must be a clean same-origin path under the current URL; anything else is ignored, and `/easypic/`, `/shutter/`, and `/recipes/` keep their registry meaning. `place().mount` is that prefix. `place().site.base` stays the live prefix. easypic, shutter, and recipes are `en: true`, so an English page links each of them to its `/en/`. A Chinese page keeps the unprefixed path.
 
 ```html
 <meta name="rf-mount" content="/pics/" />
@@ -78,7 +78,7 @@ rfLang.choose(nextLang);
 document.dispatchEvent(new Event("rf:locale"));
 ```
 
-To bring a tool into English: serve `<base>en/`, add `canonical` and `hreflang` links (`zh-CN`, `en`, `x-default` → English) to both versions, inline `/shell/lang.js` with `data-rf-enter` after those links in the zh entry, and keep API and asset URLs anchored at the tool's base. Start any analytics snippet after it with `if (window.rfLang && window.rfLang.leaving) return;`. Drop `data-home` on bilingual pages. An inlined copy carries the site table it was built with, so copy it again when any `en` flag changes. Once that is live, set the tool's `en` to `true` in `src/shell/lang.ts` and deploy this site; until then the English home page links to the tool's Chinese entry.
+To bring a tool into English: serve `<base>en/`, add `canonical` and `hreflang` links (`zh-CN`, `en`, `x-default` → English) to both versions, inline `/shell/lang.js` with `data-rf-enter` after those links in the zh entry, and keep API and asset URLs anchored at the tool's base. Start any analytics snippet after it with `if (window.rfLang && window.rfLang.leaving) return;`. Drop `data-home` on bilingual pages. An inlined copy carries the site table it was built with, so copy it again when any `en` flag changes. easypic, shutter, and recipes are already `en: true`. A later tool stays off until its own `/en/` is live.
 
 ## Deploy
 
