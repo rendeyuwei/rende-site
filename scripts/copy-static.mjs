@@ -1,4 +1,5 @@
 import { cp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import esbuild from "esbuild";
 import path from "node:path";
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -8,13 +9,29 @@ const pub = path.join(root, "public");
 await mkdir(dist, { recursive: true });
 await cp(pub, dist, { recursive: true });
 
-const lang = (await readFile(path.join(dist, "shell/lang.js"), "utf8")).trim();
-if (/<\/script|<script|<!--/i.test(lang)) throw new Error("shell/lang.js cannot be inlined: it contains <script, </script, or <!--");
+// Drop whitespace only. Names stay, and the combined top bar stays under 12_000 bytes.
+const pack = async (source) => {
+  const packed = await esbuild.transform(source, {
+    minifyWhitespace: true,
+    target: "es2020",
+    charset: "utf8",
+    legalComments: "none",
+  });
+  return packed.code.trim();
+};
 
-// Pages that only load topbar.js (older tool builds) still need window.rfLang.
+const langFile = path.join(dist, "shell/lang.js");
 const topbarFile = path.join(dist, "shell/topbar.js");
-const topbar = await readFile(topbarFile, "utf8");
-if (!topbar.startsWith(lang)) await writeFile(topbarFile, `${lang}\n${topbar}`);
+const langSource = await readFile(langFile, "utf8");
+const topbarSource = await readFile(topbarFile, "utf8");
+const lang = await pack(langSource);
+const topbarBody = topbarSource.startsWith(langSource.trim())
+  ? topbarSource.slice(langSource.trim().length)
+  : topbarSource;
+const topbar = await pack(topbarBody);
+if (/<\/script|<script|<!--/i.test(lang)) throw new Error("shell/lang.js cannot be inlined: it contains <script, </script, or <!--");
+await writeFile(langFile, lang);
+await writeFile(topbarFile, `${lang}\n${topbar}`);
 
 // Inline the language decision so it runs before the first paint.
 const ENTER_TAG = '<script data-rf-enter src="/shell/lang.js"></script>';

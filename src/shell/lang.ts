@@ -11,6 +11,7 @@ interface RfPlace {
   site: RfSite;
   lang: RfLangCode;
   rest: string;
+  mount: string;
 }
 
 interface RfLangApi {
@@ -33,7 +34,7 @@ interface Window {
 }
 
 (function () {
-  const V = 1;
+  const V = 2;
   const KEY = "rf-lang";
   const HREFLANG: Record<RfLangCode, string> = { zh: "zh-CN", en: "en" };
 
@@ -45,18 +46,61 @@ interface Window {
     { id: "home", base: "/", en: true },
   ];
 
-  const place = (pathname: string): RfPlace => {
-    const path = pathname || "/";
-    const site =
-      SITES.find((s) => path.indexOf(s.base) === 0 || `${path}/` === s.base) ?? SITES[SITES.length - 1];
-    let rest = path.slice(site.base.length);
+  // <meta name="rf-mount">, or the existing shutter <meta name="sc-mount">, plus
+  // <script data-tool="id">. Ignored unless it is a clean same-origin path, names
+  // a known tool, and this URL sits under it. A registered tool prefix still wins.
+  const mountPath = (raw: string | null): string => {
+    const text = (raw ?? "").trim();
+    if (!text || /[\s?#\\%]/.test(text) || text.includes("..") || text.startsWith("//")) return "";
+    let path = text;
+    if (!text.startsWith("/")) {
+      let url: URL;
+      try {
+        url = new URL(text);
+      } catch {
+        return "";
+      }
+      if (url.origin !== location.origin || url.search || url.hash) return "";
+      path = url.pathname;
+    }
+    if (!path.endsWith("/")) path += "/";
+    return path.split("/").slice(1, -1).every((part) => part !== "" && part !== ".") ? path : "";
+  };
+
+  const covers = (path: string, base: string): boolean => path.indexOf(base) === 0 || `${path}/` === base;
+
+  const declared = (): { site: RfSite; base: string } | null => {
+    const named = document.querySelector('meta[name="rf-mount"]');
+    const raw = named
+      ? named.getAttribute("content")
+      : document.querySelector('meta[name="sc-mount"]')?.getAttribute("content");
+    const base = mountPath(raw ?? null);
+    const tool = document.querySelector("script[data-tool]")?.getAttribute("data-tool");
+    const site = SITES.find((item) => item.id === tool && item.id !== "home");
+    const path = location.pathname || "/";
+    if (!base || !site || !covers(path, base)) return null;
+    return { site, base };
+  };
+
+  const cut = (site: RfSite, base: string, path: string): RfPlace => {
+    let rest = path.indexOf(base) === 0 ? path.slice(base.length) : "";
     let lang: RfLangCode = "zh";
     if (rest === "en" || rest.indexOf("en/") === 0) {
       lang = "en";
       rest = rest.slice(3);
     }
     // A leading "//" would turn base + rest into a protocol-relative URL on another origin.
-    return { site, lang, rest: rest.replace(/^\/+/, "") };
+    return { site, lang, rest: rest.replace(/^\/+/, ""), mount: base };
+  };
+
+  const place = (pathname: string): RfPlace => {
+    const path = pathname || "/";
+    const known = SITES.find((site) => site.id !== "home" && covers(path, site.base));
+    if (known) return cut(known, known.base, path);
+    const over = declared();
+    if (over && covers(path, over.base)) return cut(over.site, over.base, path);
+    const home = SITES[SITES.length - 1];
+    return cut(home, home.base, path);
   };
 
   const match = (tags: readonly unknown[]): RfLangCode | null => {
@@ -115,7 +159,7 @@ interface Window {
 
   const href = (lang: RfLangCode): string => {
     const here = place(location.pathname);
-    return `${here.site.base}${lang === "en" ? "en/" : ""}${here.rest}${query(lang === "zh")}${location.hash || ""}`;
+    return `${here.mount}${lang === "en" ? "en/" : ""}${here.rest}${query(lang === "zh")}${location.hash || ""}`;
   };
 
   const siteHref = (id: string): string => {

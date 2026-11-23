@@ -199,6 +199,7 @@ function browser(html, { pathname = "/", search = "", hash = "", reduce = false,
       search,
       hash,
       protocol: "https:",
+      origin: "https://rende.fun",
       href: `https://rende.fun${pathname}${search}${hash}`,
       replace() {
         throw new Error("unexpected navigation");
@@ -435,20 +436,22 @@ describe("lang", () => {
   });
 });
 
-describe("topbar languages", () => {
-  function bar({ pathname = "/", search = "", hash = "", head = ALTERNATES, body = "", storage } = {}) {
-    const { window, document } = browser(`<!doctype html><html><head>${head}</head><body>${body}</body></html>`, {
-      pathname,
-      search,
-      hash,
-      storage: storage ?? { localStorage: memoryStorage() },
-    });
-    withScript(document, "https://rende.fun/shell/topbar.js");
-    vm.runInThisContext(read("shell/topbar.js"));
-    const hrefs = [...document.querySelectorAll(".rf-menu a")].map((link) => link.getAttribute("href"));
-    return { window, document, hrefs, toggle: document.querySelector(".rf-lang") };
-  }
+function bar({ pathname = "/", search = "", hash = "", head = ALTERNATES, body = "", storage, tool = "", mount = "", mountName = "rf-mount" } = {}) {
+  const meta = mount ? `<meta name="${mountName}" content="${mount}">` : "";
+  const { window, document } = browser(`<!doctype html><html><head>${meta}${head}</head><body>${body}</body></html>`, {
+    pathname,
+    search,
+    hash,
+    storage: storage ?? { localStorage: memoryStorage() },
+  });
+  const script = withScript(document, "https://rende.fun/shell/topbar.js", tool ? { "data-tool": tool } : {});
+  document.head.appendChild(script);
+  vm.runInThisContext(read("shell/topbar.js"));
+  const hrefs = [...document.querySelectorAll(".rf-menu a")].map((link) => link.getAttribute("href"));
+  return { window, document, hrefs, toggle: document.querySelector(".rf-lang") };
+}
 
+describe("topbar languages", () => {
   const cards = '<a data-rf-site="easypic" href="/easypic/">e</a><a data-rf-site="shutter" href="/shutter/">s</a>';
 
   it("renders English on the English home page", () => {
@@ -526,6 +529,213 @@ describe("topbar languages", () => {
     assert.equal(document.querySelector(".rf-cur").textContent, "EasyPic");
     assert.equal(document.querySelector(".rf-home .rf-t").textContent, "回到主站");
     assert.deepEqual(hrefs, ["/easypic/", "/shutter/", "/recipes/", "/"]);
+  });
+});
+
+describe("same-document locale", () => {
+  const kept = ["place", "match", "pref", "choose", "offers", "href", "siteHref", "enter"];
+
+  function mounted(extra = {}) {
+    return bar({
+      pathname: "/tools/counter/",
+      search: "?demo=1",
+      hash: "#success",
+      tool: "shutter",
+      mount: "/tools/counter/",
+      ...extra,
+    });
+  }
+
+  function snap(document) {
+    const barEl = document.querySelector(".rf-bar");
+    const toggle = document.querySelector("a.rf-lang");
+    return {
+      bars: document.querySelectorAll(".rf-bar").length,
+      lang: barEl?.getAttribute("lang") ?? "",
+      cur: document.querySelector(".rf-cur")?.textContent ?? "",
+      tools: document.querySelector(".rf-btn")?.textContent.trim() ?? "",
+      nav: document.querySelector(".rf-menu")?.getAttribute("aria-label") ?? "",
+      home: document.querySelector(".rf-logo")?.getAttribute("aria-label") ?? "",
+      back: document.querySelector(".rf-home .rf-t")?.textContent ?? "",
+      toggle: toggle?.textContent ?? "",
+      toggleLang: toggle?.getAttribute("lang") ?? "",
+      toggleHref: toggle?.getAttribute("href") ?? "",
+      hrefs: [...document.querySelectorAll(".rf-menu a")].map((link) => link.getAttribute("href")),
+    };
+  }
+
+  it("reads a custom mount from the page instead of guessing an en segment", () => {
+    const { window, document } = mounted();
+    const place = window.rfLang.place(location.pathname);
+    assert.equal(place.site.id, "shutter");
+    assert.equal(place.site.base, "/shutter/");
+    assert.equal(place.site.en, false);
+    assert.equal(place.lang, "zh");
+    assert.equal(place.rest, "");
+    assert.equal(place.mount, "/tools/counter/");
+    assert.equal(window.rfLang.href("en"), "/tools/counter/en/?demo=1#success");
+    assert.deepEqual(snap(document), {
+      bars: 1,
+      lang: "zh-CN",
+      cur: "快门计数",
+      tools: "工具",
+      nav: "切换工具",
+      home: "rende.fun 主站",
+      back: "回到主站",
+      toggle: "EN",
+      toggleLang: "en",
+      toggleHref: "/tools/counter/en/?demo=1#success",
+      hrefs: ["/easypic/", "/shutter/", "/recipes/", "/"],
+    });
+    const english = bar({
+      pathname: "/tools/counter/en/",
+      search: "?demo=1",
+      hash: "#success",
+      tool: "shutter",
+      mountName: "sc-mount",
+      mount: "/tools/counter/",
+    });
+    assert.equal(english.window.rfLang.place("/tools/counter/en/").lang, "en");
+    assert.equal(english.window.rfLang.href("zh"), "/tools/counter/?demo=1&lang=zh#success");
+    assert.equal(english.window.rfLang.href("en"), "/tools/counter/en/?demo=1#success");
+    assert.equal(snap(english.document).lang, "en");
+    assert.equal(snap(english.document).cur, "ShutterCount");
+    assert.equal(snap(english.document).toggle, "中文");
+    assert.equal(snap(english.document).toggleHref, "/tools/counter/?demo=1&lang=zh#success");
+    assert.deepEqual(
+      english.window.rfLang.sites.map((site) => site.en),
+      [false, false, false, true],
+    );
+    assert.deepEqual(snap(english.document).hrefs, ["/easypic/", "/shutter/", "/recipes/", "/en/"]);
+  });
+
+  it("keeps root and known mounts, and leaves undeclared main paths alone", () => {
+    const root = bar({ pathname: "/en/guide", search: "?demo=1", hash: "#x", tool: "shutter", mount: "/" });
+    const rooted = root.window.rfLang.place("/en/guide");
+    assert.equal(rooted.site.id, "shutter");
+    assert.equal(rooted.lang, "en");
+    assert.equal(rooted.rest, "guide");
+    assert.equal(rooted.mount, "/");
+    assert.equal(root.window.rfLang.href("zh"), "/guide?demo=1&lang=zh#x");
+    assert.equal(snap(root.document).cur, "ShutterCount");
+    const known = bar({ pathname: "/shutter/en/", tool: "shutter", mount: "/shutter/" });
+    assert.equal(known.window.rfLang.href("zh"), "/shutter/?lang=zh");
+    assert.equal(known.window.rfLang.place("/shutter/en/").site.base, "/shutter/");
+    const plain = bar({ pathname: "/tools/counter/en/" });
+    assert.equal(plain.window.rfLang.place("/tools/counter/en/").site.id, "home");
+    assert.equal(plain.window.rfLang.place("/tools/counter/en/").lang, "zh");
+    assert.equal(plain.window.rfLang.href("en"), "/en/tools/counter/en/");
+    const home = bar({ pathname: "/en/tools/counter/en/" });
+    assert.equal(home.window.rfLang.place("/en/tools/counter/en/").lang, "en");
+    assert.equal(home.window.rfLang.place("/en/tools/counter/en/").rest, "tools/counter/en/");
+    assert.equal(home.window.rfLang.place("/easypic/").site.id, "easypic");
+  });
+
+  it("rejects mount declarations outside this origin or this path", () => {
+    const bad = [
+      "https://evil.example/tools/counter/",
+      "//evil.example/tools/counter/",
+      "https://rende.fun.evil.example/tools/counter/",
+      "http://rende.fun/tools/counter/",
+      "javascript:alert(1)",
+      "tools/counter/",
+      "/tools/counter/../secret/",
+      "/tools//counter/",
+      "https://rende.fun/tools/counter/?x=1",
+      "/elsewhere/",
+    ];
+    for (const mount of bad) {
+      const { window, document } = bar({
+        pathname: "/tools/counter/en/",
+        search: "?demo=1",
+        hash: "#success",
+        tool: "shutter",
+        mount,
+      });
+      const place = window.rfLang.place("/tools/counter/en/");
+      assert.equal(place.site.id, "home", mount);
+      assert.equal(place.lang, "zh", mount);
+      assert.equal(window.rfLang.href("en"), "/en/tools/counter/en/?demo=1#success", mount);
+      assert.equal(document.querySelector(".rf-bar").getAttribute("lang"), "zh-CN", mount);
+    }
+    const absolute = bar({
+      pathname: "/tools/counter/en/",
+      tool: "shutter",
+      mount: "https://rende.fun/tools/counter/",
+    });
+    assert.equal(absolute.window.rfLang.place("/tools/counter/en/").mount, "/tools/counter/");
+    assert.equal(absolute.window.rfLang.href("zh"), "/tools/counter/?lang=zh");
+  });
+
+  it("refreshes once after an in-memory switch, including back and forward", () => {
+    const local = memoryStorage();
+    const { window, document } = mounted({ storage: { localStorage: local }, body: '<p id="result">12,480</p>' });
+    const rf = window.rfLang;
+    const originals = Object.fromEntries(kept.map((key) => [key, rf[key]]));
+    assert.equal(document.querySelector("#result").textContent, "12,480");
+    location.pathname = "/tools/counter/en/";
+    assert.equal(document.querySelector(".rf-bar").getAttribute("lang"), "zh-CN");
+    assert.equal(rf.choose("en"), true);
+    document.dispatchEvent(new window.Event("rf:locale"));
+    document.dispatchEvent(new window.Event("rf:locale"));
+    const shown = snap(document);
+    assert.equal(shown.bars, 1);
+    assert.equal(shown.lang, "en");
+    assert.equal(shown.cur, "ShutterCount");
+    assert.equal(shown.tools, "Tools");
+    assert.equal(shown.nav, "Switch tool");
+    assert.equal(shown.home, "rende.fun home");
+    assert.equal(shown.back, "Back to home");
+    assert.equal(shown.toggle, "中文");
+    assert.equal(shown.toggleLang, "zh-CN");
+    assert.equal(shown.toggleHref, "/tools/counter/?demo=1&lang=zh#success");
+    assert.deepEqual(shown.hrefs, ["/easypic/", "/shutter/", "/recipes/", "/en/"]);
+    assert.equal(document.querySelector("#result").textContent, "12,480");
+    assert.equal(local.items.get("rf-lang"), "en");
+    for (const key of kept) assert.equal(rf[key], originals[key], key);
+    vm.runInThisContext(read("shell/lang.js"));
+    for (const key of kept) assert.equal(window.rfLang[key], originals[key], key);
+    const button = document.querySelector(".rf-btn");
+    button.click();
+    assert.equal(button.getAttribute("aria-expanded"), "true");
+    button.click();
+    assert.equal(button.getAttribute("aria-expanded"), "false");
+    location.pathname = "/tools/counter/";
+    window.dispatchEvent(new window.Event("popstate"));
+    assert.equal(snap(document).lang, "zh-CN");
+    assert.equal(snap(document).toggleHref, "/tools/counter/en/?demo=1#success");
+    location.pathname = "/tools/counter/en/";
+    window.dispatchEvent(new window.Event("popstate"));
+    assert.equal(snap(document).lang, "en");
+    assert.equal(snap(document).toggle, "中文");
+    const recipes = bar({ pathname: "/lab/recipes/en/12", search: "?a=1", hash: "#n", tool: "recipes", mount: "/lab/recipes/" });
+    assert.equal(recipes.window.rfLang.place("/lab/recipes/en/12").site.id, "recipes");
+    assert.equal(recipes.window.rfLang.place("/lab/recipes/en/12").rest, "12");
+    assert.equal(recipes.window.rfLang.href("zh"), "/lab/recipes/12?a=1&lang=zh#n");
+    location.pathname = "/lab/recipes/12";
+    recipes.document.dispatchEvent(new recipes.window.Event("rf:locale"));
+    assert.equal(recipes.document.querySelector(".rf-cur").textContent, "家常菜本");
+    assert.equal(recipes.window.rfLang.sites.find((site) => site.id === "recipes").en, false);
+  });
+
+  it("keeps an explicit Chinese choice on in-memory links when storage is blocked", () => {
+    const { window, document } = bar({
+      pathname: "/tools/counter/en/",
+      search: "?demo=1",
+      hash: "#success",
+      tool: "shutter",
+      mount: "/tools/counter/",
+      storage: { localStorage: blockedStorage, cookieBlocked: true },
+      body: '<a data-rf-site="easypic" href="/easypic/">e</a>',
+    });
+    assert.equal(window.rfLang.choose("zh"), false);
+    location.pathname = "/tools/counter/";
+    location.search = "?demo=1&lang=zh";
+    document.dispatchEvent(new window.Event("rf:locale"));
+    assert.equal(document.querySelector("a.rf-lang").getAttribute("href"), "/tools/counter/en/?demo=1#success");
+    assert.equal(document.querySelector('a[data-rf-site="easypic"]').getAttribute("href"), "/easypic/?lang=zh");
+    assert.equal(document.querySelector(".rf-logo").getAttribute("href"), "/?lang=zh");
+    assert.doesNotThrow(() => document.querySelector("a.rf-lang").click());
   });
 });
 
