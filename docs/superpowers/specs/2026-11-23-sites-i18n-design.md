@@ -52,6 +52,7 @@ interface RfPlace { site: RfSite; lang: RfLangCode; rest: string }
 | `href(lang)` | 当前位置在该语言下的 URL（见第 2 节） |
 | `siteHref(id)` | 跨站入口：当前页英文且目标站 `en: true` → `/<base>en/`；否则中文入口；当前页是“URL 明确中文”且偏好未能保存为中文时追加 `?lang=zh`，防止存储禁用时下一站又被自动带去英文 |
 | `enter()` | 首访判定，见第 4 节 |
+| `leaving` | `enter()` 已调用 `location.replace()` 时为 `true`；后面的 head 脚本（统计）据此跳过，避免把被跳走的 `/` 记成一次浏览 |
 
 载入方式：
 - `<head>` 内联：`<script data-rf-enter>…</script>`，放在 `<link rel="alternate">` 之后、统计脚本和样式之前。带 `data-rf-enter` 时脚本执行 `enter()`。主站构建时把源码里的 `<script data-rf-enter src="/shell/lang.js"></script>` 替换为内联内容；子站可以内联同一份 `/shell/lang.js`，或保留这行同步外链（多一次阻塞请求）。
@@ -81,6 +82,7 @@ if want == "en" 且 offers("en")   → location.replace(href("en"))
 - `public/index.html`（中文）与 `public/en/index.html`（英文）两份静态 HTML，结构相同，所有可见文案、title、description、alt、aria-label、mailto 主题都按语言区分。
 - 两页都含：`<html lang="zh-CN|en">`、canonical 自指、`hreflang="zh-CN"` → `https://rende.fun/`、`hreflang="en"` → `https://rende.fun/en/`、`hreflang="x-default"` → `https://rende.fun/en/`（与“无匹配默认英文”一致）。
 - 只有中文页内联 `enter()`。资源路径全为绝对路径，`/en/` 下可直接使用。设计、照片规则不变。
+- 两页各有 `<noscript>` 样式，让滚动显现的区块和 `rende` 字标在禁用 JS 时也可见（原页面禁用 JS 时这些内容不可见，属现状问题，因“禁 JS 可读”是本轮验收项而一并修复）。禁用 JS 时没有顶栏，也就没有切换器，读者可直接访问另一语言的 URL。
 
 ## 7. 缓存、SEO、服务端
 
@@ -90,7 +92,7 @@ if want == "en" 且 offers("en")   → location.replace(href("en"))
 
 ## 8. 子站接入清单（后续轮次）
 
-1. 入口 HTML：`<html lang>`、canonical、两条 `hreflang` 加 `x-default`，然后内联 `/shell/lang.js`（带 `data-rf-enter`）。
+1. 入口 HTML：`<html lang>`、canonical、两条 `hreflang` 加 `x-default`，然后内联 `/shell/lang.js`（带 `data-rf-enter`）；其后的统计片段以 `if (window.rfLang && window.rfLang.leaving) return;` 开头。内联副本带着构建时的站点表，任一站 `en` 改变后要重新复制；双语页面不要再设 `data-home`（它会覆盖语言感知的主页链接）。
 2. 英文外壳 `<base>en/index.html`；API、图片、资源路径保持站点前缀（快门需先把 `./api/*`、`./iphone-export-original.jpg` 改为以 `/shutter/` 开头）。
 3. 路由前缀按 `place().lang` 设置（如 `/recipes/en`）。
 4. 文案字典打包，首帧同步取语言；服务端错误增加稳定 `code`（家常菜本），快门 `note` 增加 `noteCode`。

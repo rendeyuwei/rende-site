@@ -63,7 +63,7 @@ dist/
 
 构建时把 `lang.js` 内联进 `index.html`，并拼到 `topbar.js` 前面，因此只加载顶栏的页面也有 `window.rfLang`（但不跳转）。顶栏跟随页面 URL 的语言；页面用 `<link rel="alternate" hreflang="zh-CN|en">` 声明了另一种语言时才显示切换器；顶栏会改写自己的链接和页面上的 `a[data-rf-site="<id>"]`。存储被禁用时，明确的 `?lang=zh` 会带到这些链接上，下一个工具不会退回英文。
 
-工具接入英文：提供 `<base>en/`；两种语言都加 `canonical` 和 `hreflang`（`zh-CN`、`en`、`x-default` 指向英文）；在中文入口里这些链接之后内联带 `data-rf-enter` 的 `/shell/lang.js`；API 和资源 URL 保持以工具前缀开头。上线后把 `src/shell/lang.ts` 里该工具的 `en` 改成 `true` 并部署本站；在此之前英文主页指向该工具的中文入口。
+工具接入英文：提供 `<base>en/`；两种语言都加 `canonical` 和 `hreflang`（`zh-CN`、`en`、`x-default` 指向英文）；在中文入口里这些链接之后内联带 `data-rf-enter` 的 `/shell/lang.js`；API 和资源 URL 保持以工具前缀开头。其后的统计片段以 `if (window.rfLang && window.rfLang.leaving) return;` 开头。双语页面不要再设 `data-home`。内联副本带着构建时的站点表，任一 `en` 开关变化后要重新复制。上线后把 `src/shell/lang.ts` 里该工具的 `en` 改成 `true` 并部署本站；在此之前英文主页指向该工具的中文入口。
 
 ## 部署
 
