@@ -1,37 +1,64 @@
 /* rende.fun shell top bar. <script src="/shell/topbar.js" defer></script> */
 (function () {
+  type Text = Record<RfLangCode, string>;
+
   interface Tool {
     id: string;
-    name: string;
-    d: string;
-    href: string;
+    name: Text;
+    d: Text;
     bg: string;
     fg: string;
     m: string;
   }
 
   const TOOLS: readonly Tool[] = [
-    { id: "easypic", name: "EasyPic", d: "图片压缩与格式转换", href: "/easypic/", bg: "#0c0d0f", fg: "#efac4b", m: "EP" },
-    { id: "shutter", name: "快门计数", d: "从原图读取快门次数", href: "/shutter/", bg: "#1b1e22", fg: "#efac4b", m: "SC" },
-    { id: "recipes", name: "家常菜本", d: "做过的菜，记下来", href: "/recipes/", bg: "#CFE0D6", fg: "#1B3A8C", m: "菜" },
+    {
+      id: "easypic",
+      name: { zh: "EasyPic", en: "EasyPic" },
+      d: { zh: "图片压缩与格式转换", en: "Image compression and format conversion" },
+      bg: "#0c0d0f",
+      fg: "#efac4b",
+      m: "EP",
+    },
+    {
+      id: "shutter",
+      name: { zh: "快门计数", en: "ShutterCount" },
+      d: { zh: "从原图读取快门次数", en: "Read shutter count from an original photo" },
+      bg: "#1b1e22",
+      fg: "#efac4b",
+      m: "SC",
+    },
+    {
+      id: "recipes",
+      name: { zh: "家常菜本", en: "Home Recipes" },
+      d: { zh: "做过的菜，记下来", en: "Dishes I've cooked, written down" },
+      bg: "#CFE0D6",
+      fg: "#1B3A8C",
+      m: "菜",
+    },
   ];
+
+  const COPY = {
+    zh: { home: "rende.fun 主站", back: "回到主站", tools: "工具", nav: "切换工具", all: "全部工具" },
+    en: { home: "rende.fun home", back: "Back to home", tools: "Tools", nav: "Switch tool", all: "All tools" },
+  };
 
   const host = window as Window & { __rfBar?: number };
   if (host.__rfBar) return;
+  // scripts/copy-static.mjs prepends shell/lang.js to this file.
+  const rf = host.rfLang;
+  if (!rf) return;
   host.__rfBar = 1;
 
   const current = document.currentScript;
   const script = current && current.nodeName === "SCRIPT" ? (current as HTMLScriptElement) : null;
   const base = script?.src ? script.src.replace(/topbar\.js.*$/, "") : "/shell/";
-  const home = script?.dataset.home || "/";
+  const here = rf.place(location.pathname);
+  const lang = here.lang;
+  const text = COPY[lang];
+  const homeHref = (): string => script?.dataset.home || rf.siteHref("home");
 
-  let currentId = script?.dataset.tool || "";
-  if (!currentId) {
-    const path = location.pathname;
-    for (const tool of TOOLS) {
-      if (path.indexOf(tool.href) === 0) currentId = tool.id;
-    }
-  }
+  const currentId = script?.dataset.tool || (here.site.id === "home" ? "" : here.site.id);
   const active = TOOLS.find((tool) => tool.id === currentId);
 
   if (!document.querySelector("link[data-rf]")) {
@@ -45,11 +72,12 @@
   const bar = document.createElement("header");
   bar.className = "rf-bar";
   bar.setAttribute("role", "banner");
+  bar.lang = lang === "en" ? "en" : "zh-CN";
 
   const logo = document.createElement("a");
   logo.className = "rf-logo";
-  logo.href = home;
-  logo.setAttribute("aria-label", "rende.fun 主站");
+  logo.href = homeHref();
+  logo.setAttribute("aria-label", text.home);
   logo.innerHTML = '<span class="rf-wm">rende</span><span class="rf-tag">fun</span>';
   bar.appendChild(logo);
 
@@ -58,7 +86,7 @@
     sep.className = "rf-sep";
     const label = document.createElement("span");
     label.className = "rf-cur";
-    label.textContent = active.name;
+    label.textContent = active.name[lang];
     bar.append(sep, label);
   }
 
@@ -69,11 +97,32 @@
   if (active) {
     const back = document.createElement("a");
     back.className = "rf-home";
-    back.href = home;
-    back.setAttribute("aria-label", "回到主站");
+    back.href = homeHref();
+    back.setAttribute("aria-label", text.back);
     back.innerHTML =
-      '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M8.5 3 4.5 7l4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span class="rf-t">回到主站</span>';
+      '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M8.5 3 4.5 7l4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span class="rf-t"></span>';
+    (back.querySelector(".rf-t") as HTMLElement).textContent = text.back;
     bar.appendChild(back);
+  }
+
+  const other: RfLangCode = lang === "en" ? "zh" : "en";
+  if (rf.offers(other)) {
+    const toggle = document.createElement("a");
+    toggle.className = "rf-lang";
+    toggle.lang = other === "en" ? "en" : "zh-CN";
+    toggle.hreflang = toggle.lang;
+    toggle.textContent = other === "en" ? "EN" : "中文";
+    toggle.title = other === "en" ? "Switch to English" : "切换到中文";
+    const sync = (): void => {
+      toggle.href = rf.href(other);
+    };
+    sync();
+    window.addEventListener("hashchange", sync);
+    toggle.addEventListener("click", () => {
+      rf.choose(other);
+      sync();
+    });
+    bar.appendChild(toggle);
   }
 
   const button = document.createElement("button");
@@ -81,7 +130,7 @@
   button.type = "button";
   button.setAttribute("aria-expanded", "false");
   button.setAttribute("aria-controls", "rf-menu");
-  button.append("工具 ");
+  button.append(`${text.tools} `);
   button.insertAdjacentHTML(
     "beforeend",
     '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
@@ -90,47 +139,50 @@
   const menu = document.createElement("nav");
   menu.className = "rf-menu";
   menu.id = "rf-menu";
-  menu.setAttribute("aria-label", "切换工具");
+  menu.setAttribute("aria-label", text.nav);
+
+  const swatch = (bg: string, fg: string, mark: string): HTMLSpanElement => {
+    const sw = document.createElement("span");
+    sw.className = "rf-sw";
+    sw.setAttribute("aria-hidden", "true");
+    sw.style.background = bg;
+    sw.style.color = fg;
+    sw.textContent = mark;
+    return sw;
+  };
 
   for (const tool of TOOLS) {
     const link = document.createElement("a");
-    link.href = tool.href;
+    link.href = rf.siteHref(tool.id);
     if (tool.id === currentId) link.setAttribute("aria-current", "page");
-    const swatch = document.createElement("span");
-    swatch.className = "rf-sw";
-    swatch.style.background = tool.bg;
-    swatch.style.color = tool.fg;
-    swatch.textContent = tool.m;
-    const text = document.createElement("span");
+    const textBox = document.createElement("span");
     const name = document.createElement("span");
     name.className = "rf-n";
-    name.textContent = tool.name;
+    name.textContent = tool.name[lang];
     const desc = document.createElement("span");
     desc.className = "rf-d";
-    desc.textContent = tool.d;
-    text.append(name, desc);
-    link.append(swatch, text);
+    desc.textContent = tool.d[lang];
+    textBox.append(name, desc);
+    link.append(swatch(tool.bg, tool.fg, tool.m), textBox);
     menu.appendChild(link);
   }
 
   const rule = document.createElement("hr");
   const all = document.createElement("a");
-  all.href = home;
-  const allSwatch = document.createElement("span");
-  allSwatch.className = "rf-sw";
-  allSwatch.style.background = "#2A2D33";
-  allSwatch.style.color = "#7FD1AE";
-  allSwatch.textContent = "↖";
+  all.href = homeHref();
   const allName = document.createElement("span");
   allName.className = "rf-n";
-  allName.textContent = "全部工具";
-  all.append(allSwatch, allName);
+  allName.textContent = text.all;
+  all.append(swatch("#2A2D33", "#7FD1AE", "↖"), allName);
   menu.append(rule, all);
   bar.append(button, menu);
 
   const mount = (): void => {
     document.body.insertBefore(bar, document.body.firstChild);
     document.documentElement.classList.add("rf-has-bar");
+    for (const link of document.querySelectorAll<HTMLAnchorElement>("a[data-rf-site]")) {
+      link.href = rf.siteHref(link.dataset.rfSite || "home");
+    }
   };
   if (document.body) mount();
   else document.addEventListener("DOMContentLoaded", mount);
