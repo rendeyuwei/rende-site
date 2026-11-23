@@ -11,8 +11,8 @@ html.rf-has-bar body{padding-top:var(--rf-h)!important}
 .rf-sep{width:1px;height:18px;background:#2F333A}
 .rf-cur{color:#B9BDC4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rf-sp{flex:1}
-.rf-home,.rf-btn{height:32px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border-radius:8px;color:#C9CCD2;cursor:pointer;white-space:nowrap}
-.rf-home:hover,.rf-btn:hover,.rf-btn[aria-expanded=true]{background:#23262C;color:#fff}
+.rf-home,.rf-btn,.rf-lang{height:32px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border-radius:8px;color:#C9CCD2;cursor:pointer;white-space:nowrap}
+.rf-home:hover,.rf-btn:hover,.rf-lang:hover,.rf-btn[aria-expanded=true]{background:#23262C;color:#fff}
 .rf-bar a:focus-visible,.rf-bar button:focus-visible{outline:2px solid #7FD1AE;outline-offset:2px}
 .rf-btn svg{transition:transform .15s}.rf-btn[aria-expanded=true] svg{transform:rotate(180deg)}
 .rf-menu{position:absolute;top:calc(var(--rf-h) - 4px);right:12px;width:280px;padding:6px;border-radius:12px;background:#1C1F24;border:1px solid #30343B;box-shadow:0 16px 40px rgba(0,0,0,.35);display:none}
@@ -21,6 +21,7 @@ html.rf-has-bar body{padding-top:var(--rf-h)!important}
 .rf-menu a:hover{background:#262A31}
 .rf-menu a[aria-current=page]{background:#262A31}
 .rf-menu a[aria-current=page] .rf-n::after{content:"当前";margin-left:6px;font-size:11px;color:#7FD1AE}
+.rf-bar:lang(en) .rf-menu a[aria-current=page] .rf-n::after{content:"current"}
 .rf-sw{width:26px;height:26px;border-radius:7px;flex:none;display:grid;place-items:center;font:700 11px/1 ui-monospace,Menlo,monospace}
 .rf-n{font-weight:600;color:#F1F2F4}.rf-d{display:block;margin-top:3px;font-size:12px;font-weight:400;color:#8A8F98}
 .rf-menu hr{height:1px;background:#2F333A;margin:6px 4px}
