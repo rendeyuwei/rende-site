@@ -10,6 +10,7 @@
   <script>
 var _hmt = _hmt || [];
 (function() {
+  if (window.rfLang && window.rfLang.leaving) return;
   var hm = document.createElement("script");
   hm.src = "https://hm.baidu.com/hm.js?f4b1d2fc4d60c37f898b469f83237dab";
   var s = document.getElementsByTagName("script")[0];
@@ -24,6 +25,7 @@ var _hmt = _hmt || [];
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@500;600&family=ZCOOL+QingKe+HuangYou&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/site.css">
+  <noscript><style>.rv { opacity: 1; transform: none; filter: none; } .mark .w::before { content: "rende"; }</style></noscript>
 </head>
 <body>
   <section class="hero">
@@ -63,7 +65,7 @@ var _hmt = _hmt || [];
         </div>
       </div>
     </div>
-    <h2 id="about" class="rv">关于我 <small>about</small></h2>
+    <h2 id="about" class="rv">关于我 <small lang="en">about</small></h2>
     <section class="about">
       <div class="card-me rv">
         <div class="ph"><img src="/assets/me.jpg" srcset="/assets/me-560.jpg 560w, /assets/me.jpg 1120w" sizes="(max-width: 640px) 88px, (max-width: 959px) 220px, 280px" width="1120" height="1680" alt="任德" loading="lazy" decoding="async"></div>

@@ -9,7 +9,7 @@ await mkdir(dist, { recursive: true });
 await cp(pub, dist, { recursive: true });
 
 const lang = (await readFile(path.join(dist, "shell/lang.js"), "utf8")).trim();
-if (/<\/script/i.test(lang)) throw new Error("shell/lang.js cannot be inlined: it contains </script");
+if (/<\/script|<script|<!--/i.test(lang)) throw new Error("shell/lang.js cannot be inlined: it contains <script, </script, or <!--");
 
 // Pages that only load topbar.js (older tool builds) still need window.rfLang.
 const topbarFile = path.join(dist, "shell/topbar.js");

@@ -16,6 +16,8 @@ interface RfPlace {
 interface RfLangApi {
   v: number;
   sites: readonly RfSite[];
+  // True once enter() has called location.replace(); later head scripts (analytics) should skip.
+  leaving: boolean;
   place(pathname: string): RfPlace;
   match(tags: readonly unknown[]): RfLangCode | null;
   pref(): RfLangCode | null;
@@ -53,7 +55,8 @@ interface Window {
       lang = "en";
       rest = rest.slice(3);
     }
-    return { site, lang, rest };
+    // A leading "//" would turn base + rest into a protocol-relative URL on another origin.
+    return { site, lang, rest: rest.replace(/^\/+/, "") };
   };
 
   const match = (tags: readonly unknown[]): RfLangCode | null => {
@@ -71,7 +74,7 @@ interface Window {
     } catch {
       value = null;
     }
-    if (!value) {
+    if (value !== "zh" && value !== "en") {
       try {
         value = /(?:^|;\s*)rf-lang=(zh|en)(?:;|$)/.exec(document.cookie)?.[1] ?? null;
       } catch {
@@ -126,13 +129,15 @@ interface Window {
     if (place(location.pathname).lang === "en" || explicitZh()) return;
     const languages = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language];
     const want = pref() ?? match(languages) ?? "en";
-    if (want === "en" && offers("en")) location.replace(href("en"));
+    if (want === "en" && offers("en")) {
+      api.leaving = true;
+      location.replace(href("en"));
+    }
   };
 
   const host = window;
-  if (!host.rfLang || host.rfLang.v < V) {
-    host.rfLang = { v: V, sites: SITES, place, match, pref, choose, offers, href, siteHref, enter };
-  }
+  const api: RfLangApi = { v: V, sites: SITES, leaving: false, place, match, pref, choose, offers, href, siteHref, enter };
+  if (!host.rfLang || host.rfLang.v < V) host.rfLang = api;
   const script = document.currentScript;
   if (script && script.hasAttribute("data-rf-enter")) host.rfLang.enter();
 })();

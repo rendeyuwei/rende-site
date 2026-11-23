@@ -112,7 +112,7 @@
     toggle.lang = other === "en" ? "en" : "zh-CN";
     toggle.hreflang = toggle.lang;
     toggle.textContent = other === "en" ? "EN" : "中文";
-    toggle.setAttribute("aria-label", other === "en" ? "Switch to English" : "切换到中文");
+    toggle.title = other === "en" ? "Switch to English" : "切换到中文";
     const sync = (): void => {
       toggle.href = rf.href(other);
     };

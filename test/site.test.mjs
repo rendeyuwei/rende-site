@@ -117,6 +117,14 @@ describe("dist contract", () => {
     );
   });
 
+  it("stays readable without JavaScript", () => {
+    for (const rel of ["index.html", "en/index.html"]) {
+      const style = parseHTML(read(rel)).document.querySelector("head noscript").textContent;
+      assert.match(style, /\.rv \{ opacity: 1; transform: none; filter: none; \}/, rel);
+      assert.match(style, /\.mark \.w::before \{ content: "rende"; \}/, rel);
+    }
+  });
+
   it("inlines the language decision only into the zh page", () => {
     const lang = read("shell/lang.js").trim();
     const zh = parseHTML(read("index.html")).document;
@@ -125,10 +133,17 @@ describe("dist contract", () => {
     assert.equal(enter.hasAttribute("src"), false);
     assert.equal(enter.textContent, lang);
     const head = [...zh.head.children];
+    const at = (test) => {
+      const index = head.findIndex(test);
+      assert.ok(index >= 0);
+      return index;
+    };
     const enterAt = head.indexOf(enter);
-    assert.ok(head.findIndex((node) => node.getAttribute("hreflang") === "en") < enterAt, "alternates come first");
-    assert.ok(head.findIndex((node) => /hm\.baidu\.com/.test(node.textContent)) > enterAt, "analytics come after");
-    assert.ok(head.findIndex((node) => node.getAttribute("rel") === "stylesheet") > enterAt, "styles come after");
+    assert.ok(at((node) => node.getAttribute("hreflang") === "en") < enterAt, "alternates come first");
+    const analytics = at((node) => /hm\.baidu\.com/.test(node.textContent));
+    assert.ok(analytics > enterAt, "analytics come after");
+    assert.match(head[analytics].textContent, /if \(window\.rfLang && window\.rfLang\.leaving\) return;/);
+    assert.ok(at((node) => node.getAttribute("rel") === "stylesheet") > enterAt, "styles come after");
     assert.equal(parseHTML(read("en/index.html")).document.querySelector("script[data-rf-enter]"), null);
     assert.ok(read("shell/topbar.js").startsWith(lang));
   });
@@ -210,6 +225,7 @@ function browser(html, { pathname = "/", search = "", hash = "", reduce = false,
     devicePixelRatio: 1,
   });
   let jar = storage?.cookie ?? "";
+  const cookieWrites = [];
   Object.defineProperty(document, "cookie", {
     configurable: true,
     get() {
@@ -218,13 +234,14 @@ function browser(html, { pathname = "/", search = "", hash = "", reduce = false,
     },
     set(value) {
       if (storage?.cookieBlocked) throw new Error("SecurityError: cookies are disabled");
+      cookieWrites.push(value);
       jar = value.split(";")[0];
     },
   });
   document.getAnimations = () => [];
   window.__rfBar = 0;
   window.rfLang = undefined;
-  return { window, document };
+  return { window, document, cookieWrites };
 }
 
 function memoryStorage(initial = {}) {
@@ -317,7 +334,7 @@ describe("topbar", () => {
 describe("lang", () => {
   function enter({ pathname = "/", search = "", hash = "", languages = ["zh-CN"], alternates = true, storage } = {}) {
     const head = alternates ? ALTERNATES : "";
-    const { window, document } = browser(`<!doctype html><html><head>${head}</head><body></body></html>`, {
+    const { window, document, cookieWrites } = browser(`<!doctype html><html><head>${head}</head><body></body></html>`, {
       pathname,
       search,
       hash,
@@ -328,11 +345,14 @@ describe("lang", () => {
     installGlobals({ navigator: { languages, language: languages[0] } });
     withScript(document, "", { "data-rf-enter": "" });
     vm.runInThisContext(read("shell/lang.js"));
-    return { replaced, rf: window.rfLang };
+    return { replaced, rf: window.rfLang, cookieWrites };
   }
 
   it("matches the ordered browser languages on first visit", () => {
-    assert.deepEqual(enter({ languages: ["en-US"] }).replaced, ["/en/"]);
+    const first = enter({ languages: ["en-US"] });
+    assert.deepEqual(first.replaced, ["/en/"]);
+    assert.equal(first.rf.leaving, true);
+    assert.equal(enter({ languages: ["zh-CN"] }).rf.leaving, false);
     assert.deepEqual(enter({ languages: ["zh-CN"] }).replaced, []);
     assert.deepEqual(enter({ languages: ["ja", "en", "zh-CN"] }).replaced, ["/en/"]);
     assert.deepEqual(enter({ languages: ["ja", "zh-CN", "en"] }).replaced, []);
@@ -383,10 +403,12 @@ describe("lang", () => {
     const local = memoryStorage();
     assert.equal(enter({ storage: { localStorage: local } }).rf.choose("en"), true);
     assert.equal(local.items.get("rf-lang"), "en");
-    const { rf } = enter({ storage: { localStorage: blockedStorage } });
+    const { rf, cookieWrites } = enter({ storage: { localStorage: blockedStorage } });
     assert.equal(rf.choose("zh"), true);
-    assert.equal(document.cookie, "rf-lang=zh");
+    assert.deepEqual(cookieWrites, ["rf-lang=zh; Path=/; Max-Age=31536000; SameSite=Lax; Secure"]);
     assert.equal(rf.pref(), "zh");
+    const stale = enter({ storage: { localStorage: memoryStorage({ "rf-lang": "fr" }), cookie: "rf-lang=en" } });
+    assert.equal(stale.rf.pref(), "en");
   });
 
   it("maps paths between languages per site", () => {
@@ -399,6 +421,8 @@ describe("lang", () => {
     );
     assert.equal(rf.href("zh"), "/recipes/12?a=1&lang=zh#x");
     assert.equal(rf.href("en"), "/recipes/en/12?a=1#x");
+    assert.equal(rf.place("/en//evil.com/x").rest, "evil.com/x");
+    assert.equal(enter({ pathname: "/en//evil.com/x", alternates: false }).rf.href("zh"), "/evil.com/x?lang=zh");
     assert.deepEqual(
       rf.sites.map((site) => [site.id, site.base, site.en]),
       [
@@ -450,11 +474,33 @@ describe("topbar languages", () => {
     const local = memoryStorage();
     const { toggle, hrefs } = bar({ search: "?lang=zh&freeze=0", storage: { localStorage: local } });
     assert.equal(toggle.textContent, "EN");
-    assert.equal(toggle.getAttribute("aria-label"), "Switch to English");
+    assert.equal(toggle.hasAttribute("aria-label"), false);
+    assert.equal(toggle.getAttribute("title"), "Switch to English");
     assert.equal(toggle.getAttribute("href"), "/en/?freeze=0");
     assert.deepEqual(hrefs, ["/easypic/?lang=zh", "/shutter/?lang=zh", "/recipes/?lang=zh", "/?lang=zh"]);
     toggle.click();
     assert.equal(local.items.get("rf-lang"), "en");
+  });
+
+  it("follows hash changes in the switch link", () => {
+    const { window, toggle } = bar({ search: "?freeze=0" });
+    globalThis.location.hash = "#about";
+    window.dispatchEvent(new window.Event("hashchange"));
+    assert.equal(toggle.getAttribute("href"), "/en/?freeze=0#about");
+  });
+
+  it("switches even when storage and cookies are disabled", () => {
+    const { toggle } = bar({ pathname: "/en/", storage: { localStorage: blockedStorage, cookieBlocked: true } });
+    assert.doesNotThrow(() => toggle.click());
+    assert.equal(toggle.getAttribute("href"), "/?lang=zh");
+  });
+
+  it("links to a tool's English entry once that tool turns on en", () => {
+    const { window } = bar({ pathname: "/en/" });
+    const easypic = window.rfLang.sites.find((site) => site.id === "easypic");
+    easypic.en = true;
+    assert.equal(window.rfLang.siteHref("easypic"), "/easypic/en/");
+    assert.equal(window.rfLang.siteHref("shutter"), "/shutter/");
   });
 
   it("drops the zh marker from links once the choice is stored", () => {
