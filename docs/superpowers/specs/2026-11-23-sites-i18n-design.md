@@ -21,7 +21,7 @@
 ```ts
 type RfLangCode = "zh" | "en";
 interface RfSite { id: string; base: string; en: boolean }   // en: 该站已上线 /<base>en/
-interface RfPlace { site: RfSite; lang: RfLangCode; rest: string }
+interface RfPlace { site: RfSite; lang: RfLangCode; rest: string; mount: string }
 ```
 
 站点表（最长前缀优先，`home` 兜底）：
@@ -33,8 +33,9 @@ interface RfPlace { site: RfSite; lang: RfLangCode; rest: string }
 | recipes | `/recipes/` | false |
 | home | `/` | true |
 
-- `place(pathname)`：取最长匹配的站点；`rest` 为站点前缀后的剩余路径；`rest` 为 `en` 或以 `en/` 开头时语言为英文并去掉这段。`/easypic`（无斜杠）归 easypic。
-- 对应页：`base + (en ? "en/" : "") + rest + query + hash`。切到中文时 query 追加 `lang=zh`（明确中文）；切到英文时去掉 `lang`。其他 query 参数原样保留（不重新编码）。
+- `place(pathname)`：已注册的工具前缀优先（`/easypic` 无斜杠也归 easypic）。否则，当前页若声明了合法挂载，且这条路径落在该挂载下，就用该挂载。再否则归 `home`。`rest` 为挂载之后的剩余路径；`rest` 为 `en` 或以 `en/` 开头时语言为英文并去掉这段。没有声明时，不会把路径中段的 `en` 猜成语言。
+- 合法挂载：`<meta name="rf-mount" content="/tools/counter/">`（快门现有的 `<meta name="sc-mount">` 同样接受），并且页面上有 `<script data-tool="shutter|easypic|recipes">`。`content` 必须是同源的干净路径（拒绝别的源、`//`、`..`、`%`、query、hash），且当前 URL 在它下面。不合法就当没声明。`place().mount` 是实际前缀；`place().site.base` 仍是注册表里的线上前缀。
+- 对应页：`mount + (en ? "en/" : "") + rest + query + hash`。切到中文时 query 追加 `lang=zh`；切到英文时去掉 `lang`。其他 query 原样保留。跨站链接仍用注册表的 `site.base`，不用页面挂载。
 
 ## 3. 共享运行时接口 `window.rfLang`
 
@@ -42,7 +43,7 @@ interface RfPlace { site: RfSite; lang: RfLangCode; rest: string }
 
 | 成员 | 作用 |
 |---|---|
-| `v` | 契约版本，当前 `1` |
+| `v` | 契约版本，当前 `2`。顶栏里的新副本会替换页面里 v1 的内联副本，不改写已装上的函数 |
 | `sites` | 上表 |
 | `place(pathname)` | 解析站点、语言、剩余路径 |
 | `match(tags)` | 有序匹配 `zh`/`en`，无匹配返回 `null` |
@@ -76,6 +77,7 @@ if want == "en" 且 offers("en")   → location.replace(href("en"))
 - 文案中英两份：logo 标签、回到主站、工具按钮、菜单标签、全部工具、“当前”标记（CSS `:lang(en)`）、工具名与描述（EasyPic / ShutterCount / Home Recipes）。
 - 菜单、logo、“回到主站”和页面中带 `data-rf-site="<id>"` 的链接，`href` 都取 `siteHref(id)`。`data-home` 和 `data-tool` 仍然生效。
 - 切换器：只有在 `offers(另一种语言)` 时才显示；`href` 取 `href(另一种语言)`，点击时先 `choose()` 再导航；hash 变化时更新 `href`。旧版子站没有声明对应页，所以不显示切换器。
+- 同一文档内换语言：页面用 `pushState` 或 `replaceState` 改好 URL，并更新 `html lang`、title、hreflang 之后，在同一轮同步派发 `document.dispatchEvent(new Event("rf:locale"))`。返回时同一个 `.rf-bar` 已对上 URL；开关原先有焦点则焦点回到新开关。document 的 click/keydown 和 window 的 hashchange 只注册一次。不要删 `window.__rfBar`，不要拆掉顶栏，不要再插入 `topbar.js`。手选仍由页面调用 `choose()`（点顶栏开关时顶栏自己调用）。`popstate`（后退/前进）由顶栏自己刷新。不要包一层 `place`/`href`。
 
 ## 6. 主站页面
 
@@ -92,11 +94,11 @@ if want == "en" 且 offers("en")   → location.replace(href("en"))
 
 ## 8. 子站接入清单（后续轮次）
 
-1. 入口 HTML：`<html lang>`、canonical、两条 `hreflang` 加 `x-default`，然后内联 `/shell/lang.js`（带 `data-rf-enter`）；其后的统计片段以 `if (window.rfLang && window.rfLang.leaving) return;` 开头。内联副本带着构建时的站点表，任一站 `en` 改变后要重新复制；双语页面不要再设 `data-home`（它会覆盖语言感知的主页链接）。
+1. 入口 HTML：`<html lang>`、canonical、两条 `hreflang` 加 `x-default`，然后内联 `/shell/lang.js`（带 `data-rf-enter`）；其后的统计片段以 `if (window.rfLang && window.rfLang.leaving) return;` 开头。内联副本带着构建时的站点表，任一站 `en` 改变后要重新复制；双语页面不要再设 `data-home`（它会覆盖语言感知的主页链接）。挂载不是注册表前缀时加 `<meta name="rf-mount" content="/your/base/">`（例如 `/pics/`），顶栏脚本保留 `data-tool`。同一文档里 `pushState` 之后同步派发 `rf:locale`，不要重放顶栏脚本。
 2. 英文外壳 `<base>en/index.html`；API、图片、资源路径保持站点前缀（快门需先把 `./api/*`、`./iphone-export-original.jpg` 改为以 `/shutter/` 开头）。
 3. 路由前缀按 `place().lang` 设置（如 `/recipes/en`）。
 4. 文案字典打包，首帧同步取语言；服务端错误增加稳定 `code`（家常菜本），快门 `note` 增加 `noteCode`。
-5. 上线并验证后，把 `lang.ts` 中该站 `en` 改为 `true` 并发布主站（`v` 不变，接口语义没变）。在此之前，主站英文页的菜单和工具卡指向该站的中文入口，不会 404。
+5. 上线并验证后，另一次提交把 `lang.ts` 中该站 `en` 改为 `true` 并发布主站（不必再升 `v`）。在此之前，主站英文页的菜单和工具卡指向该站的中文入口，不会 404。
 
 ## 9. 不做
 
