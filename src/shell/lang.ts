@@ -40,9 +40,9 @@ interface Window {
 
   // Longest base first. Set en: true only after that site serves <base>en/.
   const SITES: readonly RfSite[] = [
-    { id: "easypic", base: "/easypic/", en: false },
-    { id: "shutter", base: "/shutter/", en: false },
-    { id: "recipes", base: "/recipes/", en: false },
+    { id: "easypic", base: "/easypic/", en: true },
+    { id: "shutter", base: "/shutter/", en: true },
+    { id: "recipes", base: "/recipes/", en: true },
     { id: "home", base: "/", en: true },
   ];
 

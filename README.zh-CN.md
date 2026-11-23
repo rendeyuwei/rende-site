@@ -63,7 +63,7 @@ dist/
 
 构建时把 `lang.js` 内联进 `index.html`，并拼到 `topbar.js` 前面（`v` 为 2，会换掉页面里更旧的内联副本），因此只加载顶栏的页面也有 `window.rfLang`（但不跳转）。顶栏跟随页面 URL 的语言；页面用 `<link rel="alternate" hreflang="zh-CN|en">` 声明了另一种语言时才显示切换器；顶栏会改写自己的链接和页面上的 `a[data-rf-site="<id>"]`。存储被禁用时，明确的 `?lang=zh` 会带到这些链接上，下一个工具不会退回英文。
 
-工具如果不挂在注册表前缀下，用 `<meta name="rf-mount" content="/tools/counter/">`（EasyPic 挂在 `/pics/` 时用 `content="/pics/"`），并在顶栏脚本上写 `data-tool="shutter|easypic|recipes"`。已有的 `<meta name="sc-mount">` 同样有效。值必须是当前 URL 之下的同源干净路径，否则忽略；`/easypic/`、`/shutter/`、`/recipes/` 仍按注册表解释。`place().mount` 是这个前缀，`place().site.base` 仍是线上前缀。三个工具的 `en` 在英文真正上线前保持 `false`。
+工具如果不挂在注册表前缀下，用 `<meta name="rf-mount" content="/tools/counter/">`（EasyPic 挂在 `/pics/` 时用 `content="/pics/"`），并在顶栏脚本上写 `data-tool="shutter|easypic|recipes"`。已有的 `<meta name="sc-mount">` 同样有效。值必须是当前 URL 之下的同源干净路径，否则忽略；`/easypic/`、`/shutter/`、`/recipes/` 仍按注册表解释。`place().mount` 是这个前缀，`place().site.base` 仍是线上前缀。easypic、shutter、recipes 的 `en` 都是 `true`：英文页指向各自的 `/en/`，中文页仍是无前缀路径。
 
 ```html
 <meta name="rf-mount" content="/pics/" />
@@ -78,7 +78,7 @@ rfLang.choose(nextLang);
 document.dispatchEvent(new Event("rf:locale"));
 ```
 
-工具接入英文：提供 `<base>en/`；两种语言都加 `canonical` 和 `hreflang`（`zh-CN`、`en`、`x-default` 指向英文）；在中文入口里这些链接之后内联带 `data-rf-enter` 的 `/shell/lang.js`；API 和资源 URL 保持以工具前缀开头。其后的统计片段以 `if (window.rfLang && window.rfLang.leaving) return;` 开头。双语页面不要再设 `data-home`。内联副本带着构建时的站点表，任一 `en` 开关变化后要重新复制。上线后把 `src/shell/lang.ts` 里该工具的 `en` 改成 `true` 并部署本站；在此之前英文主页指向该工具的中文入口。
+工具接入英文：提供 `<base>en/`；两种语言都加 `canonical` 和 `hreflang`（`zh-CN`、`en`、`x-default` 指向英文）；在中文入口里这些链接之后内联带 `data-rf-enter` 的 `/shell/lang.js`；API 和资源 URL 保持以工具前缀开头。其后的统计片段以 `if (window.rfLang && window.rfLang.leaving) return;` 开头。双语页面不要再设 `data-home`。内联副本带着构建时的站点表，任一 `en` 开关变化后要重新复制。easypic、shutter、recipes 的 `en` 已经是 `true`。以后的新工具在自己的 `/en/` 上线前保持关闭。
 
 ## 部署
 

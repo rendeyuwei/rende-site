@@ -26,11 +26,11 @@ interface RfPlace { site: RfSite; lang: RfLangCode; rest: string; mount: string 
 
 站点表（最长前缀优先，`home` 兜底）：
 
-| id | base | en（本轮） |
+| id | base | en |
 |---|---|---|
-| easypic | `/easypic/` | false |
-| shutter | `/shutter/` | false |
-| recipes | `/recipes/` | false |
+| easypic | `/easypic/` | true |
+| shutter | `/shutter/` | true |
+| recipes | `/recipes/` | true |
 | home | `/` | true |
 
 - `place(pathname)`：已注册的工具前缀优先（`/easypic` 无斜杠也归 easypic）。否则，当前页若声明了合法挂载，且这条路径落在该挂载下，就用该挂载。再否则归 `home`。`rest` 为挂载之后的剩余路径；`rest` 为 `en` 或以 `en/` 开头时语言为英文并去掉这段。没有声明时，不会把路径中段的 `en` 猜成语言。
@@ -98,7 +98,7 @@ if want == "en" 且 offers("en")   → location.replace(href("en"))
 2. 英文外壳 `<base>en/index.html`；API、图片、资源路径保持站点前缀（快门需先把 `./api/*`、`./iphone-export-original.jpg` 改为以 `/shutter/` 开头）。
 3. 路由前缀按 `place().lang` 设置（如 `/recipes/en`）。
 4. 文案字典打包，首帧同步取语言；服务端错误增加稳定 `code`（家常菜本），快门 `note` 增加 `noteCode`。
-5. 上线并验证后，另一次提交把 `lang.ts` 中该站 `en` 改为 `true` 并发布主站（不必再升 `v`）。在此之前，主站英文页的菜单和工具卡指向该站的中文入口，不会 404。
+5. 三个工具的 `en` 已是 `true`（不必再升 `v`）。英文页的菜单和 `data-rf-site` 指向各站 `/en/`；中文页仍指向无前缀入口。
 
 ## 9. 不做
 
