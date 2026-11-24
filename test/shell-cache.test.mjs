@@ -82,7 +82,7 @@ function start(src) {
         ["/shutter/en/", pageHtml({ title: "shutter", lang: "en", src, tool: "shutter" })],
         ["/recipes/en/", pageHtml({ title: "recipes", lang: "en", src, tool: "recipes" })],
         ["/pics/en/", pageHtml({ title: "pics", lang: "en", src, tool: "easypic", mount: "/pics/", input: true })],
-        ["/timing/", pageHtml({ title: "timing", lang: "en", src, tool: "easypic", input: true })],
+        ["/timing/en/", pageHtml({ title: "timing", lang: "en", src, tool: "easypic", mount: "/timing/", input: true })],
         ["/missing/", pageHtml({ title: "missing", lang: "en", src: `/shell/topbar.${"ab".repeat(32)}.js`, input: true })],
         ["/rollback/", pageHtml({ title: "rollback", lang: "en", src: octSrc, tool: "shutter" })],
       ]);
@@ -187,7 +187,7 @@ async function menu(page) {
     return {
       button: text(".rf-btn"),
       current: document.querySelector(".rf-cur")?.textContent ?? "",
-      back: text(".rf-home"),
+      back: document.querySelector(".rf-home .rf-t")?.textContent ?? "",
       toggle: document.querySelector("a.rf-lang")?.textContent ?? "",
       names: [...document.querySelectorAll(".rf-menu .rf-n")].map((node) => node.textContent),
       path: location.pathname + location.search,
@@ -346,7 +346,9 @@ describe("cached shell", { timeout: 120_000 }, () => {
       const slow = await launch(slowDir);
       slowBrowser = slow.browser;
       const started = Date.now();
-      const opened = slow.page.goto(`${server.origin}/timing/`, { waitUntil: "commit", timeout: 20_000 });
+      const client = await slow.page.createCDPSession();
+      await client.send("Page.enable");
+      await client.send("Page.navigate", { url: `${server.origin}/timing/en/` });
       await slow.page.waitForSelector("#draft", { timeout: 8000 });
       const early = await slow.page.evaluate(() => ({
         input: document.querySelector("#draft").value,
@@ -354,7 +356,6 @@ describe("cached shell", { timeout: 120_000 }, () => {
       }));
       assert.equal(early.input, "keep-me");
       assert.equal(early.bar, false, "the delayed script was already applied");
-      await opened;
       const timed = await menu(slow.page);
       assert.ok(Date.now() - started >= 1200, "the script response was not delayed");
       assert.equal(timed.button, "Tools");

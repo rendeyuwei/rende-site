@@ -30,9 +30,13 @@ dist/
   favicon.svg
   apple-touch-icon.png
   shell/
-    lang.js         # zh/en router (window.rfLang)
-    topbar.js       # lang.js + the bar
-    topbar.css
+    lang.js         # current zh/en router, unversioned alias
+    topbar.js       # current lang.js + the bar, unversioned alias
+    topbar.css      # current bar css, unversioned alias
+    manifest.json   # git commit plus sha256 of the current files
+    lang.<sha256>.js
+    topbar.<sha256>.js
+    topbar.<sha256>.css
   assets/
     me.jpg
     me-560.jpg
@@ -40,13 +44,15 @@ dist/
 
 Point the `rende.fun` server at that directory. If a deploy checks out this repo and publishes `dist/` as `/opt/site/current`, the root is `/opt/site/current`. If `current` is the repo tree, the root is `/opt/site/current/dist`. This repo does not change the server.
 
-This site serves the shared bar at `/shell/topbar.js` (and `/shell/topbar.css` next to it). Other sites on the same host embed it with:
+This site publishes the shared bar under the sha256 of the exact bytes it serves. `dist/shell/manifest.json` records the git commit and those hashes. Other sites on the same host embed the current topbar with:
 
 ```html
-<script src="/shell/topbar.js" defer></script>
+<script src="/shell/topbar.<sha256>.js" defer></script>
 ```
 
-The script inserts a 48px fixed bar, loads its CSS from the script URL, and adds `rf-has-bar` on `<html>` so `body` gets `padding-top: 48px`. Optional attributes: `data-tool="easypic|shutter|recipes"` and `data-home="/"`. Any `position: fixed` or `position: sticky` element that used to sit at `top: 0` should use `top: var(--rf-h, 0px)` so it clears the bar. Do not set a z-index above `2147483000`.
+`<sha256>` is `current.topbar.sha256` from that manifest. It is not a query string, not a page URL, and not `rfLang.v` (`v` stays 2). The script inserts a 48px fixed bar, loads `topbar.<sha256>.css` from the script's directory, and adds `rf-has-bar` on `<html>` so `body` gets `padding-top: 48px`. Optional attributes: `data-tool="easypic|shutter|recipes"` and `data-home="/"`. Any `position: fixed` or `position: sticky` element that used to sit at `top: 0` should use `top: var(--rf-h, 0px)` so it clears the bar. Do not set a z-index above `2147483000`.
+
+`/shell/topbar.js`, `/shell/lang.js`, and `/shell/topbar.css` remain copies of the current bytes for pages that still use those names. They are mutable. A browser that already stored an older response for `/shell/topbar.js` keeps using it; the hashed URL is a different cache key. Do not add `?v=` or `?version=`.
 
 ## Languages
 
@@ -67,7 +73,7 @@ A tool served outside its registry prefix says so with `<meta name="rf-mount" co
 
 ```html
 <meta name="rf-mount" content="/pics/" />
-<script src="/shell/topbar.js" defer data-tool="easypic"></script>
+<script src="/shell/topbar.<sha256>.js" defer data-tool="easypic"></script>
 ```
 
 After an in-memory `pushState` or `replaceState`, once the URL, `html lang`, title, and hreflang links match, dispatch the change in the same turn. `dispatchEvent` returns only after the existing `.rf-bar` matches the URL. Call `choose(lang)` yourself when the visitor picked it. The bar listens once, rebuilds the children of that same header, and puts focus back on the switch when it had focus. It does not wrap `place` or `href`, fetch `topbar.js` again, or touch the rest of the page. Leave `window.__rfBar` and the header in place; deleting either and inserting the script again stacks listeners and depends on the network. Back and forward refresh from `popstate`.
@@ -79,6 +85,14 @@ document.dispatchEvent(new Event("rf:locale"));
 ```
 
 To bring a tool into English: serve `<base>en/`, add `canonical` and `hreflang` links (`zh-CN`, `en`, `x-default` → English) to both versions, inline `/shell/lang.js` with `data-rf-enter` after those links in the zh entry, and keep API and asset URLs anchored at the tool's base. Start any analytics snippet after it with `if (window.rfLang && window.rfLang.leaving) return;`. Drop `data-home` on bilingual pages. An inlined copy carries the site table it was built with, so copy it again when any `en` flag changes. easypic, shutter, and recipes are already `en: true`. A later tool stays off until its own `/en/` is live.
+
+## Shell cache
+
+Hashed files under `public/shell/` are pins. A build copies every pin into `dist/shell/` and writes the new hash there too. The deploy receiver builds a fresh release and points `/opt/site/current` at it. Nginx does not serve the previous release directory, and old releases are deleted after `keep`. An old hashed URL still resolves because the new dist contains the pin. Rolling `current` back to `previous` serves HTML that names hashes present in that release. Do not delete a pin, and do not point HTML at a hash the release does not contain.
+
+This repo does not install headers. Add the locations in `deploy/nginx-shell-cache.conf` to the live server: hashed shell files are `public, max-age=31536000, immutable`; `/shell/topbar.js`, `/shell/lang.js`, `/shell/topbar.css`, `/shell/manifest.json`, `/`, and `/en/` are `no-cache`. Headers may go live before the first hashed URL exists. The main-site deploy then publishes the pins, the new files, the unversioned aliases, and the HTML that references the new hash in one switch.
+
+EasyPic, Shutter, and Recipes change `src` only after `https://rende.fun/shell/topbar.<sha256>.js` returns 200 and the body matches the manifest. Recipes must inline the exact bytes of `lang.<sha256>.js` from that same manifest. The topbar replaces an inlined copy only when its `v` is below 2, so a different v2 copy would stay in charge. Shutter's older inline copy is replaced. Do not bump `v` to expire a cache.
 
 ## Deploy
 

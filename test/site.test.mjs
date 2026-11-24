@@ -12,6 +12,10 @@ function read(rel) {
   return readFileSync(path.join(dist, rel), "utf8");
 }
 
+function shellManifest() {
+  return JSON.parse(read("shell/manifest.json"));
+}
+
 describe("dist contract", () => {
   it("ships the nginx document root", () => {
     for (const rel of [
@@ -67,11 +71,11 @@ describe("dist contract", () => {
       'alt="任德"',
       'loading="lazy"',
       'decoding="async"',
-      'src="/shell/topbar.js"',
       'src="/motion.js"',
     ]) {
       assert.ok(html.includes(text), text);
     }
+    assert.ok(html.includes(`src="${shellManifest().current.topbar.path}"`));
     assert.equal(html.includes("照片待补"), false);
     assert.match(css, /\.card-me \.ph img \{[^}]*height: auto/);
     assert.match(css, /object-fit: cover/);
@@ -100,7 +104,7 @@ describe("dist contract", () => {
         en: "https://rende.fun/en/",
         "x-default": "https://rende.fun/en/",
       });
-      assert.ok(document.querySelector('script[src="/shell/topbar.js"]'), page.rel);
+      assert.ok(document.querySelector(`script[src="${shellManifest().current.topbar.path}"]`), page.rel);
       assert.ok(document.querySelector('script[src="/motion.js"]'), page.rel);
       assert.deepEqual(
         [...document.querySelectorAll("a[data-rf-site]")].map((link) => [link.dataset.rfSite, link.getAttribute("href")]),
@@ -280,14 +284,14 @@ describe("topbar", () => {
   it("marks the tool from the pathname and toggles the menu", () => {
     const { document } = browser(html, { pathname: "/shutter/album" });
     const script = document.createElement("script");
-    script.src = "https://rende.fun/shell/topbar.js";
+    script.src = `https://rende.fun${shellManifest().current.topbar.path}`;
     Object.defineProperty(document, "currentScript", { configurable: true, get: () => script });
     vm.runInThisContext(read("shell/topbar.js"));
 
     const bar = document.querySelector(".rf-bar");
     assert.ok(bar);
     assert.equal(document.documentElement.classList.contains("rf-has-bar"), true);
-    assert.equal(document.querySelector("link[data-rf]").getAttribute("href"), "https://rende.fun/shell/topbar.css");
+    assert.equal(document.querySelector("link[data-rf]").getAttribute("href"), `https://rende.fun${shellManifest().current.css.path}`);
     assert.equal(document.querySelector(".rf-cur").textContent, "快门计数");
     assert.equal(document.querySelector(".rf-home").getAttribute("href"), "/");
     assert.equal(document.querySelector('a[href="/shutter/"]')?.getAttribute("aria-current"), "page");
@@ -328,7 +332,7 @@ describe("topbar", () => {
     vm.runInThisContext(read("shell/topbar.js"));
     assert.equal(document.querySelector(".rf-cur").textContent, "家常菜本");
     assert.equal(document.querySelector(".rf-home").getAttribute("href"), "/index.html");
-    assert.equal(document.querySelector("link[data-rf]").getAttribute("href"), "https://rende.fun/shell/topbar.css");
+    assert.equal(document.querySelector("link[data-rf]").getAttribute("href"), `https://rende.fun${shellManifest().current.css.path}`);
   });
 });
 

@@ -52,13 +52,13 @@
 
   const current = document.currentScript;
   const script = current && current.nodeName === "SCRIPT" ? (current as HTMLScriptElement) : null;
-  const base = script?.src ? script.src.replace(/topbar\.js.*$/, "") : "/shell/";
+  const base = script?.src ? script.src.replace(/[^/]*$/, "") : "/shell/";
   const homeHref = (): string => script?.dataset.home || rf.siteHref("home");
 
   if (!document.querySelector("link[data-rf]")) {
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = `${base}topbar.css`;
+    link.href = `${base}__RF_SHELL_CSS__`;
     link.dataset.rf = "1";
     document.head.appendChild(link);
   }

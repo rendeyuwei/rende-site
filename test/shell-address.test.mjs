@@ -18,7 +18,7 @@ function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-describe("content-addressed shell", () => {
+describe("content-addressed shell", { concurrency: 1 }, () => {
   it("names the served bytes with their sha256 and points HTML at that file", () => {
     const manifest = JSON.parse(readFileSync(path.join(dist, "shell/manifest.json"), "utf8"));
     const head = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" });
@@ -71,6 +71,12 @@ describe("content-addressed shell", () => {
       assert.equal(sha256(readBytes(file)), item.sha256, item.path);
       assert.match(path.basename(item.path), named);
     }
+  });
+
+  it("does not leave unpublished shell bytes after a build", () => {
+    const status = spawnSync("git", ["status", "--porcelain", "--", "public/shell"], { cwd: root, encoding: "utf8" });
+    assert.equal(status.status, 0, status.stderr);
+    assert.equal(status.stdout, "");
   });
 
   it("documents immutable hashed URLs and no-cache legacy URLs", () => {
