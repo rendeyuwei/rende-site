@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
@@ -10,8 +9,6 @@ import puppeteer from "puppeteer-core";
 const root = path.resolve(import.meta.dirname, "..");
 const dist = path.join(root, "dist");
 const oct = readFileSync(path.join(root, "test/fixtures/topbar-2026-10-22.js"));
-const octHash = createHash("sha256").update(oct).digest("hex");
-const octSrc = `/shell/topbar.${octHash}.js`;
 
 function chromePath() {
   const found = [process.env.CHROME_PATH, "/usr/bin/google-chrome-stable", "/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser"].find(
@@ -84,7 +81,6 @@ function start(src) {
         ["/pics/en/", pageHtml({ title: "pics", lang: "en", src, tool: "easypic", mount: "/pics/", input: true })],
         ["/timing/en/", pageHtml({ title: "timing", lang: "en", src, tool: "easypic", mount: "/timing/", input: true })],
         ["/missing/", pageHtml({ title: "missing", lang: "en", src: `/shell/topbar.${"ab".repeat(32)}.js`, input: true })],
-        ["/rollback/", pageHtml({ title: "rollback", lang: "en", src: octSrc, tool: "shutter" })],
       ]);
       if (routes.has(url.pathname)) {
         send(200, routes.get(url.pathname), { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
@@ -332,13 +328,6 @@ describe("cached shell", { timeout: 120_000 }, () => {
       });
       assert.equal(failedInsert.bar, true);
       assert.equal(failedInsert.input, "keep-me-edited");
-
-      await page.goto(`${server.origin}/rollback/`, { waitUntil: "domcontentloaded", timeout: 20_000 });
-      const rolled = await menu(page);
-      assert.equal(rolled.button, "工具", "rollback HTML could not load the pinned October topbar");
-      assert.equal(rolled.current, "快门计数");
-      assert.equal(hits.at(-1)?.path, octSrc);
-      assert.equal(hits.at(-1)?.status, 200);
 
       await browser.close();
       browser = undefined;

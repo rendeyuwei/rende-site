@@ -44,7 +44,7 @@ dist/
 
 Point the `rende.fun` server at that directory. If a deploy checks out this repo and publishes `dist/` as `/opt/site/current`, the root is `/opt/site/current`. If `current` is the repo tree, the root is `/opt/site/current/dist`. This repo does not change the server.
 
-This site publishes the shared bar under the sha256 of the exact bytes it serves. `dist/shell/manifest.json` records the git commit and those hashes. Other sites on the same host embed the current topbar with:
+This site publishes the shared bar under the sha256 of the exact bytes it serves. `dist/shell/manifest.json` records those hashes, and the git commit when the build directory itself contains `.git`. The deploy receiver extracts an archive, so the production trace is the `REVISION` file it writes after a successful build. Other sites on the same host embed the current topbar with:
 
 ```html
 <script src="/shell/topbar.<sha256>.js" defer></script>
@@ -88,11 +88,27 @@ To bring a tool into English: serve `<base>en/`, add `canonical` and `hreflang` 
 
 ## Shell cache
 
-Hashed files under `public/shell/` are pins. A build copies every pin into `dist/shell/` and writes the new hash there too. The deploy receiver builds a fresh release and points `/opt/site/current` at it. Nginx does not serve the previous release directory, and old releases are deleted after `keep`. An old hashed URL still resolves because the new dist contains the pin. Rolling `current` back to `previous` serves HTML that names hashes present in that release. Do not delete a pin, and do not point HTML at a hash the release does not contain.
+Hashed files live in a directory outside the release. Nginx reads them from `/opt/site/shared` (`/opt/site/shared/shell/<file>`), not from `/opt/site/current`. The receiver still switches `current` only after the build exits 0, and it deletes old releases. That must not delete a hash a child page already requested.
 
-This repo does not install headers. Add the locations in `deploy/nginx-shell-cache.conf` to the live server: hashed shell files are `public, max-age=31536000, immutable`; `/shell/topbar.js`, `/shell/lang.js`, `/shell/topbar.css`, `/shell/manifest.json`, `/`, and `/en/` are `no-cache`. Headers may go live before the first hashed URL exists. The main-site deploy then publishes the pins, the new files, the unversioned aliases, and the HTML that references the new hash in one switch.
+Provision the directory once. This repo does not create it:
 
-EasyPic, Shutter, and Recipes change `src` only after `https://rende.fun/shell/topbar.<sha256>.js` returns 200 and the body matches the manifest. Recipes must inline the exact bytes of `lang.<sha256>.js` from that same manifest. The topbar replaces an inlined copy only when its `v` is below 2, so a different v2 copy would stay in charge. Shutter's older inline copy is replaced. Do not bump `v` to expire a cache.
+```sh
+sudo mkdir -p /opt/site/shared/shell
+sudo chown rende-deploy:rende-deploy /opt/site/shared /opt/site/shared/shell
+sudo chmod 755 /opt/site/shared /opt/site/shared/shell
+```
+
+The path has to be a real directory, not a symlink. The deploy user's files are mode 644. Set the site build command, which `receive-deploy.sh` already accepts, to:
+
+```sh
+export RF_SHELL_SHARED=/opt/site/shared/shell && npm ci && npm run build
+```
+
+The copy writes a temp file in that directory, links it into place, and reads it back. The same bytes are a no-op. Different bytes at the same name fail the build, and `current` stays where it was. A missing hash is `404` with `Cache-Control: no-store`. A file that exists is `public, max-age=31536000, immutable`. Do not request a hash on the public edge until this origin returns 200; a cached 404 would keep the URL missing.
+
+`deploy/nginx-shell-cache.conf` is the location block to add. It is not installed from here. Unversioned `/shell/topbar.js`, `/shell/lang.js`, `/shell/topbar.css`, `/shell/manifest.json`, `/`, and `/en/` stay `no-cache` and still come from the current release.
+
+EasyPic, Shutter, and Recipes change `src` only after that 200. Recipes must inline the exact bytes of `lang.<sha256>.js` from the same manifest. The topbar replaces an inlined copy only when its `v` is below 2. Do not bump `v` to expire a cache. Rolling `current` back, redeploying an older commit, or deleting release directories leaves the shared files in place.
 
 ## Deploy
 

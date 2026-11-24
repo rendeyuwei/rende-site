@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { cp, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { cp, link, lstat, mkdir, open, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import esbuild from "esbuild";
 import path from "node:path";
 
@@ -8,7 +9,7 @@ const root = path.resolve(import.meta.dirname, "..");
 const dist = path.join(root, "dist");
 const pub = path.join(root, "public");
 const CSS_TOKEN = "__RF_SHELL_CSS__";
-const PINNED = /^(lang|topbar)\.([0-9a-f]{64})\.(js|css)$/;
+const PINNED = /^(lang|topbar)\.[0-9a-f]{64}\.(js|css)$/;
 
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
@@ -21,6 +22,61 @@ const pack = async (source) => {
     legalComments: "none",
   });
   return packed.code.trim();
+};
+
+const publishOne = async (dest, bytes) => {
+  try {
+    const info = await lstat(dest);
+    if (info.isSymbolicLink() || !info.isFile()) throw new Error(`refusing to replace ${dest}`);
+    const existing = await readFile(dest);
+    if (existing.equals(bytes)) return;
+    throw new Error(`refusing to overwrite ${dest}`);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  const tmp = `${dest}.${process.pid}.tmp`;
+  const handle = await open(tmp, "w", 0o644);
+  try {
+    await handle.writeFile(bytes);
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+  try {
+    await link(tmp, dest);
+  } catch (error) {
+    const raced = error.code === "EEXIST" ? await readFile(dest) : null;
+    await unlink(tmp);
+    if (raced?.equals(bytes)) return;
+    if (raced) throw new Error(`refusing to overwrite ${dest}`);
+    throw error;
+  }
+  await unlink(tmp);
+  const verified = await readFile(dest);
+  if (!verified.equals(bytes)) throw new Error(`shared shell bytes changed: ${dest}`);
+};
+
+const publishShared = async (files) => {
+  const configured = process.env.RF_SHELL_SHARED;
+  if (!configured) return;
+  if (!path.isAbsolute(configured) || path.resolve(configured) === path.parse(configured).root) {
+    throw new Error("RF_SHELL_SHARED must be an absolute directory");
+  }
+  const dir = path.resolve(configured);
+  let info;
+  try {
+    info = await lstat(dir);
+  } catch (error) {
+    if (error.code === "ENOENT") throw new Error(`RF_SHELL_SHARED is missing: ${dir}`);
+    throw error;
+  }
+  if (info.isSymbolicLink() || !info.isDirectory()) throw new Error(`RF_SHELL_SHARED must be a real directory: ${dir}`);
+  for (const file of files) {
+    if (!PINNED.test(file.name)) throw new Error(`refusing shared shell name: ${file.name}`);
+    const dest = path.join(dir, file.name);
+    if (path.dirname(dest) !== dir) throw new Error(`refusing shared shell path: ${file.name}`);
+    await publishOne(dest, file.bytes);
+  }
 };
 
 await mkdir(dist, { recursive: true });
@@ -48,45 +104,34 @@ const langHash = sha256(langBytes);
 const topbarHash = sha256(topbarBytes);
 const langName = `lang.${langHash}.js`;
 const topbarName = `topbar.${topbarHash}.js`;
+const shellDir = path.join(dist, "shell");
 
-const writeBoth = async (name, bytes) => {
-  await writeFile(path.join(dist, "shell", name), bytes);
-  await writeFile(path.join(pub, "shell", name), bytes);
-};
-
-await writeBoth(cssName, cssBytes);
-await writeBoth(langName, langBytes);
-await writeBoth(topbarName, topbarBytes);
+await writeFile(path.join(shellDir, cssName), cssBytes);
+await writeFile(path.join(shellDir, langName), langBytes);
+await writeFile(path.join(shellDir, topbarName), topbarBytes);
 await writeFile(langFile, langBytes);
 await writeFile(topbarFile, topbarBytes);
-await writeFile(path.join(dist, "shell/topbar.css"), cssBytes);
-
-const names = (await readdir(path.join(pub, "shell"))).filter((name) => PINNED.test(name)).sort();
-const retain = [];
-for (const name of names) {
-  const bytes = await readFile(path.join(pub, "shell", name));
-  const match = PINNED.exec(name);
-  const hash = sha256(bytes);
-  if (!match || hash !== match[2]) throw new Error(`pinned shell file does not match its name: ${name}`);
-  await writeFile(path.join(dist, "shell", name), bytes);
-  retain.push({ path: `/shell/${name}`, sha256: hash, bytes: bytes.length });
-}
+await writeFile(path.join(shellDir, "topbar.css"), cssBytes);
 
 const current = {
   lang: { path: `/shell/${langName}`, sha256: langHash, bytes: langBytes.length },
   topbar: { path: `/shell/${topbarName}`, sha256: topbarHash, bytes: topbarBytes.length },
   css: { path: `/shell/${cssName}`, sha256: cssHash, bytes: cssBytes.length },
 };
-for (const item of Object.values(current)) {
-  if (!retain.some((pinned) => pinned.path === item.path && pinned.sha256 === item.sha256)) {
-    throw new Error(`current shell file is not pinned: ${item.path}`);
+const manifest = { algorithm: "sha256", current };
+if (existsSync(path.join(root, ".git"))) {
+  try {
+    const commit = execFileSync("git", ["rev-parse", "--verify", "HEAD"], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    }).trim();
+    if (/^[0-9a-f]{40}$/.test(commit)) manifest.commit = commit;
+  } catch {
+    // The deploy receiver extracts a git archive and has no repository metadata.
   }
 }
-
-const commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
-if (!/^[0-9a-f]{40}$/.test(commit)) throw new Error("shell manifest needs the git commit");
-const manifest = { algorithm: "sha256", commit, current, retain };
-await writeFile(path.join(dist, "shell/manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+await writeFile(path.join(shellDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 
 const ENTER_TAG = '<script data-rf-enter src="/shell/lang.js"></script>';
 const indexFile = path.join(dist, "index.html");
@@ -104,6 +149,12 @@ for (const rel of ["index.html", "en/index.html"]) {
   if (!html.includes(srcNext)) throw new Error(`${rel} does not reference ${current.topbar.path}`);
   await writeFile(file, html);
 }
+
+await publishShared([
+  { name: langName, bytes: langBytes },
+  { name: topbarName, bytes: topbarBytes },
+  { name: cssName, bytes: cssBytes },
+]);
 
 const required = [
   "index.html",

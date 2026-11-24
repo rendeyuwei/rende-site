@@ -16,7 +16,6 @@
   "devDependencies": {
     "esbuild": "^0.25.12",
     "linkedom": "^0.18.12",
-    "puppeteer-core": "^23.11.1",
     "typescript": "^5.9.3"
   }
 }

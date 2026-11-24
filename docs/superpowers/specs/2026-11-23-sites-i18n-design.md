@@ -89,7 +89,7 @@ if want == "en" 且 offers("en")   → location.replace(href("en"))
 ## 7. 缓存、SEO、服务端
 
 - 语言只由路径和 `lang=zh` 决定，HTML 不读 Cookie、不读 Accept-Language；同一 URL 对所有人返回同一份内容，不需要 `Vary`。页面 URL 不带版本号。
-- 顶栏、语言脚本和顶栏 CSS 用文件名里的 sha256 作为缓存钥匙（`/shell/topbar.<sha256>.js` 这类路径，不用 `?v=`）。`public/shell/` 保留已经发布过的哈希文件，每次构建都带进 dist，这样切换 release 或回滚之后旧 URL 仍有字节。无版本别名和 HTML 用 `no-cache`；哈希文件用 `immutable`。具体 location 见 `deploy/nginx-shell-cache.conf`，由后续操作加到线上 Nginx，本仓库不安装。
+- 顶栏、语言脚本和顶栏 CSS 用文件名里的 sha256 作为缓存钥匙（`/shell/topbar.<sha256>.js` 这类路径，不用 `?v=`）。这些文件由构建复制到 release 之外的 `/opt/site/shared/shell/`（环境变量 `RF_SHELL_SHARED`，目录需事先建好，不能是符号链接）。Nginx 的哈希 location 用 `root /opt/site/shared`。成功响应是 `immutable`；不存在的哈希是 `404` + `no-store`。回滚 `current` 或删掉旧 release 都不删除这个目录。无版本别名和 HTML 仍从当前 release 提供，并用 `no-cache`。具体 location 见 `deploy/nginx-shell-cache.conf`，由后续操作加到线上 Nginx，本仓库不安装，也不创建该目录。
 - SEO 取舍：执行 JS 的抓取器访问 `/` 时，如果它声明的语言不是中文，会被跳到 `/en/`。中文页仍可通过不执行 JS 的原始 HTML、canonical 和 hreflang 被识别，但收录效果没有实测。不承诺零闪烁：内联脚本在首帧前执行 `location.replace`，实际是否闪现取决于浏览器，未做实测保证。
 - 偏好 cookie 只在 `localStorage` 不可用时写入。ESA 若配置了“带 Cookie 不缓存”，这部分访客的缓存命中率会受影响（未验证）。
 

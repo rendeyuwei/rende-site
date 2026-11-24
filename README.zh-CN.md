@@ -44,7 +44,7 @@ dist/
 
 把 `rende.fun` 的 `root` 指到这个目录。如果部署把 `dist/` 发布成 `/opt/site/current`，根目录就是 `/opt/site/current`。如果 `current` 是仓库本身，根目录就是 `/opt/site/current/dist`。本仓库不改服务器上的 Nginx。
 
-本站按实际响应字节的 sha256 发布共享顶栏。`dist/shell/manifest.json` 记下 git commit 和这些哈希。同一台机器上的其他站点嵌入当前顶栏：
+本站按实际响应字节的 sha256 发布共享顶栏。`dist/shell/manifest.json` 记下这些哈希；构建目录自己有 `.git` 时也记下 commit。部署接收器展开的是归档，没有 `.git`，成功之后它写入的 `REVISION` 才是线上的 commit 记录。同一台机器上的其他站点嵌入当前顶栏：
 
 ```html
 <script src="/shell/topbar.<sha256>.js" defer></script>
@@ -88,11 +88,27 @@ document.dispatchEvent(new Event("rf:locale"));
 
 ## 顶栏缓存
 
-`public/shell/` 里带哈希的文件是钉住的旧字节。每次构建都把它们拷进 `dist/shell/`，再写入新的哈希。部署接收器会新建一个 release，把 `/opt/site/current` 指过去。Nginx 不读上一个 release 目录，超过 `keep` 的旧 release 会被删掉。旧的哈希 URL 仍能打开，是因为新的 dist 里还有这些钉。把 `current` 指回 `previous` 时，那个 release 的 HTML 指向的哈希都在它自己的 dist 里。不要删除钉，也不要让 HTML 指向本 release 里没有的哈希。
+带哈希的文件放在 release 外面。Nginx 从 `/opt/site/shared` 读它们（文件在 `/opt/site/shared/shell/<file>`），不从 `/opt/site/current` 读。接收器仍然只在构建退出码为 0 之后切换 `current`，并且会删掉旧 release。这不能把子站已经用过的哈希一起删掉。
 
-本仓库不安装响应头。把 `deploy/nginx-shell-cache.conf` 里的 location 加到线上 server：带哈希的 shell 文件是 `public, max-age=31536000, immutable`；`/shell/topbar.js`、`/shell/lang.js`、`/shell/topbar.css`、`/shell/manifest.json`、`/`、`/en/` 是 `no-cache`。响应头可以在第一个哈希 URL 出现之前生效。随后主站这一次发布同时带上旧钉、新文件、无版本别名，以及指向新哈希的 HTML。
+这个目录要单独准备一次。本仓库不创建它：
 
-EasyPic、快门计数、家常菜本只在 `https://rende.fun/shell/topbar.<sha256>.js` 返回 200 且正文和 manifest 一致之后，才改 `src`。家常菜本必须内联同一份 manifest 里 `lang.<sha256>.js` 的精确字节。顶栏只在内联副本的 `v` 低于 2 时才替换它，所以另一份 v2 会继续生效。快门里更旧的内联副本会被换掉。不要为了让缓存失效去抬高 `v`。
+```sh
+sudo mkdir -p /opt/site/shared/shell
+sudo chown rende-deploy:rende-deploy /opt/site/shared /opt/site/shared/shell
+sudo chmod 755 /opt/site/shared /opt/site/shared/shell
+```
+
+它必须是真实目录，不能是符号链接。部署用户写出的文件是 644。构建命令写成接收器已经允许的这一行：
+
+```sh
+export RF_SHELL_SHARED=/opt/site/shared/shell && npm ci && npm run build
+```
+
+复制时先写临时文件，再链接到最终名字，然后把字节读回来核对。相同字节不会重写。同一个名字上的不同字节会让构建失败，`current` 保持不动。还没有的哈希返回 `404`，响应头是 `Cache-Control: no-store`。已经存在的文件是 `public, max-age=31536000, immutable`。源站返回 200 之前，不要在公网边缘请求这个哈希，否则缓存住的 404 会让后来的文件也打不开。
+
+`deploy/nginx-shell-cache.conf` 是要加到线上的 location，本仓库不安装。无版本的 `/shell/topbar.js`、`/shell/lang.js`、`/shell/topbar.css`、`/shell/manifest.json`，以及 `/` 和 `/en/`，仍然是 `no-cache`，并且仍然来自当前 release。
+
+EasyPic、快门计数、家常菜本只在那个 200 之后才改 `src`。家常菜本必须内联同一份 manifest 里 `lang.<sha256>.js` 的精确字节。顶栏只在内联副本的 `v` 低于 2 时才替换它。不要为了让缓存失效去抬高 `v`。把 `current` 指回去、重新部署旧 commit，或者删掉 release 目录，共享目录里的文件都还在。
 
 ## 部署
 
