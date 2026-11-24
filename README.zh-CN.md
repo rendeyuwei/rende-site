@@ -14,6 +14,8 @@ npm run build     # 生成 dist/
 npm run preview   # 构建后在 http://127.0.0.1:4173 提供 dist/
 ```
 
+`npm test` 还需要本机的 `nginx` 和 Google Chrome（`google-chrome` 或 `google-chrome-stable`）。`npm ci` 会安装 `puppeteer-core`。CI 和 Deploy 用 `scripts/install-test-tools.sh` 安装这两个系统包。
+
 请用上面的服务器打开预览。脚本路径是绝对路径（`/shell/topbar.js`），直接双击 `index.html` 加载不到。
 
 ## Nginx 文档根

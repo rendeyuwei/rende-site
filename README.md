@@ -14,6 +14,8 @@ npm run build     # write dist/
 npm run preview   # build, then serve dist/ at http://127.0.0.1:4173
 ```
 
+`npm test` also needs `nginx` and Google Chrome (`google-chrome` or `google-chrome-stable`). `npm ci` installs `puppeteer-core`. CI and Deploy install the two system packages with `scripts/install-test-tools.sh`.
+
 Open the preview from that server. Paths are absolute (`/shell/topbar.js`), so opening `index.html` as a file will not load the scripts.
 
 ## Nginx document root

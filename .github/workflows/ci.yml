@@ -7,19 +7,14 @@ on:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+      - run: bash scripts/install-test-tools.sh
       - run: npm ci
-      - name: Install Chrome, nginx, and the browser test driver
-        run: |
-          sudo apt-get update
-          wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-          sudo apt-get install -y /tmp/chrome.deb nginx
-          npm install --no-save --ignore-scripts puppeteer-core@23.11.1
       - run: npm run lint
       - run: npm test
