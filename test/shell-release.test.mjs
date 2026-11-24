@@ -79,6 +79,8 @@ describe("receiver and shared shell", { timeout: 300_000 }, () => {
       run("git", ["-C", repo, "commit", "-q", "-m", message]);
       return run("git", ["-C", repo, "rev-parse", "HEAD"], { encoding: "utf8" }).stdout.trim();
     };
+    const present = spawnSync("git", ["-C", site, "cat-file", "-e", `${prefeature}^{commit}`]);
+    if (present.status !== 0) run("git", ["-C", site, "fetch", "--depth", "1", "origin", prefeature]);
     const shaP = commitTree("P", () => {
       const archived = spawnSync("git", ["-C", site, "archive", prefeature], {});
       assert.equal(archived.status, 0, archived.stderr?.toString());
