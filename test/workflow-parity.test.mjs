@@ -15,6 +15,7 @@ describe("test environment parity", () => {
     const ci = read(".github/workflows/ci.yml");
     const deploy = read(".github/workflows/deploy.yml");
     const script = read("scripts/install-test-tools.sh");
+    assert.equal(ci.includes("runs-on: ubuntu-24.04"), true);
     assert.equal(ci.includes(tools), true);
     assert.equal(deploy.includes(`setup_command: ${tools}`), true);
     assert.equal(ci.includes("npm test"), true);
