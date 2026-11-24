@@ -57,7 +57,7 @@ interface RfPlace { site: RfSite; lang: RfLangCode; rest: string; mount: string 
 
 载入方式：
 - `<head>` 内联：`<script data-rf-enter>…</script>`，放在 `<link rel="alternate">` 之后、统计脚本和样式之前。带 `data-rf-enter` 时脚本执行 `enter()`。主站构建时把源码里的 `<script data-rf-enter src="/shell/lang.js"></script>` 替换为内联内容；子站可以内联同一份 `/shell/lang.js`，或保留这行同步外链（多一次阻塞请求）。
-- `/shell/topbar.js` 在构建时把 `lang.js` 拼在前面。只加载顶栏的旧页面也能拿到 `window.rfLang`，但不会执行 `enter()`。
+- `/shell/topbar.<sha256>.js` 在构建时把 `lang.js` 拼在前面，文件名是这份字节的 sha256。只加载顶栏的页面也能拿到 `window.rfLang`，但不会执行 `enter()`。无版本的 `/shell/topbar.js` 只是当前字节的别名。
 
 ## 4. `enter()` 判定
 
@@ -88,13 +88,14 @@ if want == "en" 且 offers("en")   → location.replace(href("en"))
 
 ## 7. 缓存、SEO、服务端
 
-- 语言只由路径和 `lang=zh` 决定，HTML 不读 Cookie、不读 Accept-Language；同一 URL 对所有人返回同一份内容，不需要 `Vary`、不需要改 ESA 规则或 Nginx（`try_files $uri $uri/` 已能提供 `/en/index.html`）。
+- 语言只由路径和 `lang=zh` 决定，HTML 不读 Cookie、不读 Accept-Language；同一 URL 对所有人返回同一份内容，不需要 `Vary`。页面 URL 不带版本号。
+- 顶栏、语言脚本和顶栏 CSS 用文件名里的 sha256 作为缓存钥匙（`/shell/topbar.<sha256>.js` 这类路径，不用 `?v=`）。这些文件由构建复制到 release 之外的 `/opt/site/shared/shell/`（环境变量 `RF_SHELL_SHARED`，目录需事先建好，不能是符号链接）。Nginx 的哈希 location 用 `root /opt/site/shared`。成功响应是 `immutable`；不存在的哈希是 `404` + `no-store`。回滚 `current` 或删掉旧 release 都不删除这个目录。无版本别名和 HTML 仍从当前 release 提供，并用 `no-cache`。具体 location 见 `deploy/nginx-shell-cache.conf`，由后续操作加到线上 Nginx，本仓库不安装，也不创建该目录。
 - SEO 取舍：执行 JS 的抓取器访问 `/` 时，如果它声明的语言不是中文，会被跳到 `/en/`。中文页仍可通过不执行 JS 的原始 HTML、canonical 和 hreflang 被识别，但收录效果没有实测。不承诺零闪烁：内联脚本在首帧前执行 `location.replace`，实际是否闪现取决于浏览器，未做实测保证。
 - 偏好 cookie 只在 `localStorage` 不可用时写入。ESA 若配置了“带 Cookie 不缓存”，这部分访客的缓存命中率会受影响（未验证）。
 
 ## 8. 子站接入清单（后续轮次）
 
-1. 入口 HTML：`<html lang>`、canonical、两条 `hreflang` 加 `x-default`，然后内联 `/shell/lang.js`（带 `data-rf-enter`）；其后的统计片段以 `if (window.rfLang && window.rfLang.leaving) return;` 开头。内联副本带着构建时的站点表，任一站 `en` 改变后要重新复制；双语页面不要再设 `data-home`（它会覆盖语言感知的主页链接）。挂载不是注册表前缀时加 `<meta name="rf-mount" content="/your/base/">`（例如 `/pics/`），顶栏脚本保留 `data-tool`。同一文档里 `pushState` 之后同步派发 `rf:locale`，不要重放顶栏脚本。
+1. 入口 HTML：`<html lang>`、canonical、两条 `hreflang` 加 `x-default`，然后内联与 `manifest.json` 里 `current.lang` 字节相同的 `/shell/lang.<sha256>.js`（带 `data-rf-enter`）；顶栏用同一份 manifest 的 `current.topbar.path`。其后的统计片段以 `if (window.rfLang && window.rfLang.leaving) return;` 开头。内联副本带着构建时的站点表，任一站 `en` 改变后要重新复制；`v` 仍是 2，不要为了缓存去加版本。双语页面不要再设 `data-home`（它会覆盖语言感知的主页链接）。挂载不是注册表前缀时加 `<meta name="rf-mount" content="/your/base/">`（例如 `/pics/`），顶栏脚本保留 `data-tool`。同一文档里 `pushState` 之后同步派发 `rf:locale`，不要重放顶栏脚本。等 `https://rende.fun` 上该哈希返回 200 再改 `src`。
 2. 英文外壳 `<base>en/index.html`；API、图片、资源路径保持站点前缀（快门需先把 `./api/*`、`./iphone-export-original.jpg` 改为以 `/shutter/` 开头）。
 3. 路由前缀按 `place().lang` 设置（如 `/recipes/en`）。
 4. 文案字典打包，首帧同步取语言；服务端错误增加稳定 `code`（家常菜本），快门 `note` 增加 `noteCode`。
@@ -102,4 +103,4 @@ if want == "en" 且 offers("en")   → location.replace(href("en"))
 
 ## 9. 不做
 
-后台、灯下札记、用户录入正文与滤镜名称的自动翻译、sitemap/robots、服务器或 ESA 配置、缓存刷新。
+后台、灯下札记、用户录入正文与滤镜名称的自动翻译、sitemap/robots、由本仓库直接改线上 Nginx 或 ESA。缓存不靠主动刷新：新的 HTML 指向新的文件名。

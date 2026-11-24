@@ -30,9 +30,13 @@ dist/
   favicon.svg
   apple-touch-icon.png
   shell/
-    lang.js         # zh/en router (window.rfLang)
-    topbar.js       # lang.js + the bar
-    topbar.css
+    lang.js         # current zh/en router, unversioned alias
+    topbar.js       # current lang.js + the bar, unversioned alias
+    topbar.css      # current bar css, unversioned alias
+    manifest.json   # git commit plus sha256 of the current files
+    lang.<sha256>.js
+    topbar.<sha256>.js
+    topbar.<sha256>.css
   assets/
     me.jpg
     me-560.jpg
@@ -40,13 +44,15 @@ dist/
 
 Point the `rende.fun` server at that directory. If a deploy checks out this repo and publishes `dist/` as `/opt/site/current`, the root is `/opt/site/current`. If `current` is the repo tree, the root is `/opt/site/current/dist`. This repo does not change the server.
 
-This site serves the shared bar at `/shell/topbar.js` (and `/shell/topbar.css` next to it). Other sites on the same host embed it with:
+This site publishes the shared bar under the sha256 of the exact bytes it serves. `dist/shell/manifest.json` records those hashes, and the git commit when the build directory itself contains `.git`. The deploy receiver extracts an archive, so the production trace is the `REVISION` file it writes after a successful build. Other sites on the same host embed the current topbar with:
 
 ```html
-<script src="/shell/topbar.js" defer></script>
+<script src="/shell/topbar.<sha256>.js" defer></script>
 ```
 
-The script inserts a 48px fixed bar, loads its CSS from the script URL, and adds `rf-has-bar` on `<html>` so `body` gets `padding-top: 48px`. Optional attributes: `data-tool="easypic|shutter|recipes"` and `data-home="/"`. Any `position: fixed` or `position: sticky` element that used to sit at `top: 0` should use `top: var(--rf-h, 0px)` so it clears the bar. Do not set a z-index above `2147483000`.
+`<sha256>` is `current.topbar.sha256` from that manifest. It is not a query string, not a page URL, and not `rfLang.v` (`v` stays 2). The script inserts a 48px fixed bar, loads `topbar.<sha256>.css` from the script's directory, and adds `rf-has-bar` on `<html>` so `body` gets `padding-top: 48px`. Optional attributes: `data-tool="easypic|shutter|recipes"` and `data-home="/"`. Any `position: fixed` or `position: sticky` element that used to sit at `top: 0` should use `top: var(--rf-h, 0px)` so it clears the bar. Do not set a z-index above `2147483000`.
+
+`/shell/topbar.js`, `/shell/lang.js`, and `/shell/topbar.css` remain copies of the current bytes for pages that still use those names. They are mutable. A browser that already stored an older response for `/shell/topbar.js` keeps using it; the hashed URL is a different cache key. Do not add `?v=` or `?version=`.
 
 ## Languages
 
@@ -67,7 +73,7 @@ A tool served outside its registry prefix says so with `<meta name="rf-mount" co
 
 ```html
 <meta name="rf-mount" content="/pics/" />
-<script src="/shell/topbar.js" defer data-tool="easypic"></script>
+<script src="/shell/topbar.<sha256>.js" defer data-tool="easypic"></script>
 ```
 
 After an in-memory `pushState` or `replaceState`, once the URL, `html lang`, title, and hreflang links match, dispatch the change in the same turn. `dispatchEvent` returns only after the existing `.rf-bar` matches the URL. Call `choose(lang)` yourself when the visitor picked it. The bar listens once, rebuilds the children of that same header, and puts focus back on the switch when it had focus. It does not wrap `place` or `href`, fetch `topbar.js` again, or touch the rest of the page. Leave `window.__rfBar` and the header in place; deleting either and inserting the script again stacks listeners and depends on the network. Back and forward refresh from `popstate`.
@@ -79,6 +85,30 @@ document.dispatchEvent(new Event("rf:locale"));
 ```
 
 To bring a tool into English: serve `<base>en/`, add `canonical` and `hreflang` links (`zh-CN`, `en`, `x-default` → English) to both versions, inline `/shell/lang.js` with `data-rf-enter` after those links in the zh entry, and keep API and asset URLs anchored at the tool's base. Start any analytics snippet after it with `if (window.rfLang && window.rfLang.leaving) return;`. Drop `data-home` on bilingual pages. An inlined copy carries the site table it was built with, so copy it again when any `en` flag changes. easypic, shutter, and recipes are already `en: true`. A later tool stays off until its own `/en/` is live.
+
+## Shell cache
+
+Hashed files live in a directory outside the release. Nginx reads them from `/opt/site/shared` (`/opt/site/shared/shell/<file>`), not from `/opt/site/current`. The receiver still switches `current` only after the build exits 0, and it deletes old releases. That must not delete a hash a child page already requested.
+
+Provision the directory once. This repo does not create it:
+
+```sh
+sudo mkdir -p /opt/site/shared/shell
+sudo chown rende-deploy:rende-deploy /opt/site/shared /opt/site/shared/shell
+sudo chmod 755 /opt/site/shared /opt/site/shared/shell
+```
+
+The path has to be a real directory, not a symlink. The deploy user's files are mode 644. Set the site build command, which `receive-deploy.sh` already accepts, to:
+
+```sh
+export RF_SHELL_SHARED=/opt/site/shared/shell && npm ci && npm run build
+```
+
+The copy writes a temp file in that directory, links it into place, and reads it back. The same bytes are a no-op. Different bytes at the same name fail the build, and `current` stays where it was. A missing hash is `404` with `Cache-Control: no-store`. A file that exists is `public, max-age=31536000, immutable`. Do not request a hash on the public edge until this origin returns 200; a cached 404 would keep the URL missing.
+
+`deploy/nginx-shell-cache.conf` is the location block to add. It is not installed from here. Unversioned `/shell/topbar.js`, `/shell/lang.js`, `/shell/topbar.css`, `/shell/manifest.json`, `/`, and `/en/` stay `no-cache` and still come from the current release.
+
+EasyPic, Shutter, and Recipes change `src` only after that 200. Recipes must inline the exact bytes of `lang.<sha256>.js` from the same manifest. The topbar replaces an inlined copy only when its `v` is below 2. Do not bump `v` to expire a cache. Rolling `current` back, redeploying an older commit, or deleting release directories leaves the shared files in place.
 
 ## Deploy
 

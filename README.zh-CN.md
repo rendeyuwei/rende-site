@@ -30,9 +30,13 @@ dist/
   favicon.svg
   apple-touch-icon.png
   shell/
-    lang.js         # 中英文路由（window.rfLang）
-    topbar.js       # lang.js + 顶栏
-    topbar.css
+    lang.js         # 当前中英文路由，无版本别名
+    topbar.js       # 当前 lang.js + 顶栏，无版本别名
+    topbar.css      # 当前顶栏样式，无版本别名
+    manifest.json   # git commit，以及当前文件的 sha256
+    lang.<sha256>.js
+    topbar.<sha256>.js
+    topbar.<sha256>.css
   assets/
     me.jpg
     me-560.jpg
@@ -40,13 +44,15 @@ dist/
 
 把 `rende.fun` 的 `root` 指到这个目录。如果部署把 `dist/` 发布成 `/opt/site/current`，根目录就是 `/opt/site/current`。如果 `current` 是仓库本身，根目录就是 `/opt/site/current/dist`。本仓库不改服务器上的 Nginx。
 
-本站在文档根提供 `/shell/topbar.js`（旁边是 `/shell/topbar.css`）。同一台机器上的其他站点这样嵌入：
+本站按实际响应字节的 sha256 发布共享顶栏。`dist/shell/manifest.json` 记下这些哈希；构建目录自己有 `.git` 时也记下 commit。部署接收器展开的是归档，没有 `.git`，成功之后它写入的 `REVISION` 才是线上的 commit 记录。同一台机器上的其他站点嵌入当前顶栏：
 
 ```html
-<script src="/shell/topbar.js" defer></script>
+<script src="/shell/topbar.<sha256>.js" defer></script>
 ```
 
-脚本会插入 48px 的固定顶栏，并从脚本自己的 URL 加载样式，给 `<html>` 加上 `rf-has-bar`，从而让 `body` 有 `padding-top: 48px`。可选属性：`data-tool="easypic|shutter|recipes"` 和 `data-home="/"`。原来 `position: fixed` 或 `position: sticky` 且 `top: 0` 的元素应改成 `top: var(--rf-h, 0px)`，避免被顶栏挡住。不要把 z-index 设得高于 `2147483000`。
+`<sha256>` 是这份 manifest 里的 `current.topbar.sha256`。它不是 query，不是页面 URL，也不是 `rfLang.v`（`v` 保持 2）。脚本会插入 48px 的固定顶栏，从脚本所在目录加载 `topbar.<sha256>.css`，给 `<html>` 加上 `rf-has-bar`，从而让 `body` 有 `padding-top: 48px`。可选属性：`data-tool="easypic|shutter|recipes"` 和 `data-home="/"`。原来 `position: fixed` 或 `position: sticky` 且 `top: 0` 的元素应改成 `top: var(--rf-h, 0px)`，避免被顶栏挡住。不要把 z-index 设得高于 `2147483000`。
+
+`/shell/topbar.js`、`/shell/lang.js`、`/shell/topbar.css` 仍是当前字节的副本，给还没换地址的页面用。这三个名字是可变的。浏览器如果已经存过旧的 `/shell/topbar.js`，会继续用那份；哈希 URL 是另一把缓存钥匙。不要加 `?v=` 或 `?version=`。
 
 ## 语言
 
@@ -67,7 +73,7 @@ dist/
 
 ```html
 <meta name="rf-mount" content="/pics/" />
-<script src="/shell/topbar.js" defer data-tool="easypic"></script>
+<script src="/shell/topbar.<sha256>.js" defer data-tool="easypic"></script>
 ```
 
 页面自己 `pushState` 或 `replaceState` 之后，URL、`html lang`、title 和 hreflang 都更新完，在同一轮里派发事件。`dispatchEvent` 返回时，原来的 `.rf-bar` 已经对上 URL。手选时自己调用 `choose(lang)`。顶栏只听一次，重建这同一个顶栏的子节点；开关原先有焦点时，焦点回到新开关。它不包住 `place` 或 `href`，不再请求 `topbar.js`，也不动页面其余部分。不要删 `window.__rfBar`，不要拆掉顶栏再插一次脚本：那样会叠监听，而且断网时旧顶栏已经没了。后退和前进走 `popstate`，顶栏自己刷新。
@@ -79,6 +85,30 @@ document.dispatchEvent(new Event("rf:locale"));
 ```
 
 工具接入英文：提供 `<base>en/`；两种语言都加 `canonical` 和 `hreflang`（`zh-CN`、`en`、`x-default` 指向英文）；在中文入口里这些链接之后内联带 `data-rf-enter` 的 `/shell/lang.js`；API 和资源 URL 保持以工具前缀开头。其后的统计片段以 `if (window.rfLang && window.rfLang.leaving) return;` 开头。双语页面不要再设 `data-home`。内联副本带着构建时的站点表，任一 `en` 开关变化后要重新复制。easypic、shutter、recipes 的 `en` 已经是 `true`。以后的新工具在自己的 `/en/` 上线前保持关闭。
+
+## 顶栏缓存
+
+带哈希的文件放在 release 外面。Nginx 从 `/opt/site/shared` 读它们（文件在 `/opt/site/shared/shell/<file>`），不从 `/opt/site/current` 读。接收器仍然只在构建退出码为 0 之后切换 `current`，并且会删掉旧 release。这不能把子站已经用过的哈希一起删掉。
+
+这个目录要单独准备一次。本仓库不创建它：
+
+```sh
+sudo mkdir -p /opt/site/shared/shell
+sudo chown rende-deploy:rende-deploy /opt/site/shared /opt/site/shared/shell
+sudo chmod 755 /opt/site/shared /opt/site/shared/shell
+```
+
+它必须是真实目录，不能是符号链接。部署用户写出的文件是 644。构建命令写成接收器已经允许的这一行：
+
+```sh
+export RF_SHELL_SHARED=/opt/site/shared/shell && npm ci && npm run build
+```
+
+复制时先写临时文件，再链接到最终名字，然后把字节读回来核对。相同字节不会重写。同一个名字上的不同字节会让构建失败，`current` 保持不动。还没有的哈希返回 `404`，响应头是 `Cache-Control: no-store`。已经存在的文件是 `public, max-age=31536000, immutable`。源站返回 200 之前，不要在公网边缘请求这个哈希，否则缓存住的 404 会让后来的文件也打不开。
+
+`deploy/nginx-shell-cache.conf` 是要加到线上的 location，本仓库不安装。无版本的 `/shell/topbar.js`、`/shell/lang.js`、`/shell/topbar.css`、`/shell/manifest.json`，以及 `/` 和 `/en/`，仍然是 `no-cache`，并且仍然来自当前 release。
+
+EasyPic、快门计数、家常菜本只在那个 200 之后才改 `src`。家常菜本必须内联同一份 manifest 里 `lang.<sha256>.js` 的精确字节。顶栏只在内联副本的 `v` 低于 2 时才替换它。不要为了让缓存失效去抬高 `v`。把 `current` 指回去、重新部署旧 commit，或者删掉 release 目录，共享目录里的文件都还在。
 
 ## 部署
 
