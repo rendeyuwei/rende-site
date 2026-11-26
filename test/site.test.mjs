@@ -30,6 +30,8 @@ describe("dist contract", () => {
       "shell/topbar.css",
       "assets/me.jpg",
       "assets/me-560.jpg",
+      "assets/tipwink-icon.png",
+      "assets/cursor-paperCat.png",
     ]) {
       const info = statSync(path.join(dist, rel));
       assert.ok(info.isFile() && info.size > 0, rel);
@@ -50,11 +52,16 @@ describe("dist contract", () => {
     const css = read("site.css");
     for (const text of [
       "rende.fun — 任德的小工具",
-      "任德的个人站 · 3 个工具在线",
+      "任德的个人站 · 网页工具和 Mac 应用",
+      "做几个小工具，各管一件事。<span>网页打开即用，Mac 应用需先下载。</span>",
       "/easypic/",
       "/shutter/",
       "/recipes/",
-      "下一个工具还在做",
+      '<span lang="zh-CN">纸尖</span> / Tipwink',
+      "macOS 菜单栏光标主题",
+      "需下载安装",
+      "了解并下载",
+      "如果你有点子、想合作，或者只是想聊聊，欢迎写信给我。",
       "人在杭州，前端搬砖",
       "摄影、游戏、电影",
       "rendeyuwei@qq.com",
@@ -77,6 +84,38 @@ describe("dist contract", () => {
     }
     assert.ok(html.includes(`src="${shellManifest().current.topbar.path}"`));
     assert.equal(html.includes("照片待补"), false);
+
+    const desk = parseHTML(html).document.querySelector("a.desk");
+    assert.ok(desk);
+    assert.equal(desk.getAttribute("href"), "https://rendeyuwei.github.io/Tipwink/");
+    assert.equal(desk.getAttribute("target"), "_blank");
+    const deskRel = (desk.getAttribute("rel") ?? "").split(/\s+/);
+    assert.ok(deskRel.includes("noopener"), "desk rel has noopener");
+    assert.ok(deskRel.includes("noreferrer"), "desk rel has noreferrer");
+
+    const en = read("en/index.html");
+    for (const text of [
+      "Ren De's personal site · web tools and Mac apps",
+      "<span>Open the web tools and use them right away; Mac apps need to be downloaded first.</span>",
+      '<span lang="zh-CN">纸尖</span> / Tipwink',
+      "Cursor themes for the macOS menu bar",
+      "Learn and download",
+      "If you have an idea, want to collaborate, or just want to chat, write to me.",
+    ]) {
+      assert.ok(en.includes(text), text);
+    }
+    for (const gone of [
+      "下一个工具还在做",
+      "打开就能用，不用注册",
+      "3 个工具在线",
+      "3 tools online",
+      "Just open one and use it, no sign-up.",
+      "The next tool is in the works.",
+    ]) {
+      assert.equal(html.includes(gone), false, gone);
+      assert.equal(en.includes(gone), false, gone);
+    }
+
     assert.match(css, /\.card-me \.ph img \{[^}]*height: auto/);
     assert.match(css, /object-fit: cover/);
     assert.match(css, /object-position: 62% 96%/);
