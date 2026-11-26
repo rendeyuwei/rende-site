@@ -172,6 +172,8 @@ const required = [
   `shell/${cssName}`,
   "assets/me.jpg",
   "assets/me-560.jpg",
+  "assets/tipwink-icon.png",
+  "assets/cursor-paperCat.png",
 ];
 
 for (const rel of required) {

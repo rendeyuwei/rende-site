@@ -42,6 +42,8 @@ dist/
   assets/
     me.jpg
     me-560.jpg
+    tipwink-icon.png
+    cursor-paperCat.png
 ```
 
 Point the `rende.fun` server at that directory. If a deploy checks out this repo and publishes `dist/` as `/opt/site/current`, the root is `/opt/site/current`. If `current` is the repo tree, the root is `/opt/site/current/dist`. This repo does not change the server.
@@ -132,7 +134,7 @@ If the reusable workflow later requires `health_url`, `node_version`, or `build_
 
 ## Page
 
-The home page is the v2 design: graphite top bar, aurora hero, `rende` wordmark with a mint `.fun` chip, tool windows for EasyPic, 快门计数, and 家常菜本, a dashed “下一个工具还在做” row, an about section, and the footer `© 2026 任德 · rende.fun`. The page column matches the demo: `max-width: 1120px`. `public/en/index.html` is the same page in English (ShutterCount, Home Recipes); a test keeps its element structure identical to the Chinese page.
+The home page is the v2 design: graphite top bar, aurora hero, `rende` wordmark with a mint `.fun` chip, tool windows for EasyPic, 快门计数, and 家常菜本, a 纸尖 / Tipwink desktop-app entry that opens the Tipwink page in a new tab, an about section, and the footer `© 2026 任德 · rende.fun`. The page column matches the demo: `max-width: 1120px`. `public/en/index.html` is the same page in English (ShutterCount, Home Recipes); a test keeps its element structure identical to the Chinese page.
 
 About text uses only the confirmed bio: Hangzhou, frontend engineer, photography / games / movies, the two personal emails, the optional secretary address `render@mail.grokbot.com`, GitHub, and X. The portrait is `assets/me.jpg` (1120×1680) with `assets/me-560.jpg` in `srcset`. Desktop and tablet show the full 2:3 frame, with the name under the photo. The phone layout is an 88px square; `object-position: 62% 96%` puts the face center (about x=345, y=550 on the 560×840 file; eyes near y=548) at the center of that square. The rows around y=378–432 are the tower roof.
 
